@@ -16,9 +16,13 @@ The skeletal inventory should be presented through an interactive visual interfa
 Skeletal records will generally be organised using the following hierarchy:
 
 Site
+
 └── Grave, context or site subdivision
+
     └── Individual body
+
         └── Bone
+
             └── Bone zone and preservation state
 
 A site represents a unique excavation or research location. Depending on the characteristics of the site, it may contain graves, contexts or other subdivisions. Smaller sites may not require this additional level of categorisation.
