@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    >
+
+    <title>Add New Site - OsteoMap</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+
+<body>
+
+    <div class="app">
+
+        <!-- Page Header -->
+        <header class="page-header">
+
+            <a
+                href="index.html"
+                class="back-button"
+                aria-label="Back to Home"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M15 18l-6-6 6-6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+            </a>
+
+            <h1>Add New Site</h1>
+
+        </header>
+
+
+        <!-- Main Form -->
+        <main class="main-content">
+
+            <form
+                id="create-site-form"
+                class="site-form"
+            >
+
+                <div class="form-group">
+
+                    <label for="site-code">
+                        Site Code
+                    </label>
+
+                    <input
+                        id="site-code"
+                        name="site-code"
+                        type="text"
+                        placeholder="SITE12345"
+                        autocomplete="off"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="site-description">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="site-description"
+                        name="site-description"
+                        rows="6"
+                        placeholder="Enter site description or notes"
+                    ></textarea>
+
+                </div>
+
+            </form>
+
+        </main>
+
+
+        <!-- Bottom Action -->
+        <footer class="bottom-actions">
+
+            <button
+                class="button button-primary"
+                type="button"
+                form="create-site-form"
+            >
+                Create Site
+            </button>
+
+        </footer>
+
+    </div>
+
+</body>
+</html>
