@@ -1,5 +1,15 @@
 # CITS3200-38
 
+## Development
+
+```
+npm install     # install dependencies
+npm test        # run the test suite once
+npm run test:watch   # re-run tests on file changes
+```
+
+Tests run automatically on every push/PR to `main` via GitHub Actions (`.github/workflows/test.yml`).
+
 ## CITS3200 Objectives (C.J's recollection from the initial meeting with the client)
 The OsteoMap Skeletal Inventory Project aims to digitise the process of recording and visualising human skeletal remains. The system will allow users to identify the preservation state of individual bones and specific anatomical zones using established anthropological bone-zone notation.
 
