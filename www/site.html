@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    >
+
+    <title>Site - OsteoMap</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+
+<body>
+
+    <div class="app">
+
+        <!-- Page Header -->
+        <header class="page-header">
+
+            <a
+                href="index.html"
+                class="back-button"
+                aria-label="Back to Available Sites"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M15 18l-6-6 6-6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+            </a>
+
+
+            <div class="site-header-details">
+
+                <h1 id="site-code-heading">
+                    SITE-12345
+                </h1>
+
+                <p
+                    id="site-location-heading"
+                    class="site-header-location"
+                >
+                    LOCATION
+                </p>
+
+            </div>
+
+        </header>
+
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <section class="individuals-section">
+
+                <!-- Individuals Heading -->
+                <div class="section-heading">
+
+                    <h2>
+                        Individuals
+                    </h2>
+
+
+                    <div class="individual-sort">
+
+                        <svg
+                            class="sort-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M4 5h16l-6 7v5l-4 2v-7L4 5z"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+
+                        <span>
+                            Sorted: Date/Grave
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Individual List -->
+                <div
+                    id="individual-list"
+                    class="individual-list"
+                >
+
+                    <!--
+                        Individual cards will be inserted
+                        here dynamically by site.js.
+                    -->
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <!-- Bottom Actions -->
+        <footer class="bottom-actions">
+
+            <a
+                id="add-individual-link"
+                href="addIndividual.html"
+                class="button button-primary"
+            >
+                <span class="button-icon">
+                    ＋
+                </span>
+
+                Add an Individual
+            </a>
+
+
+            <button
+                id="delete-individual-button"
+                class="button button-danger"
+                type="button"
+            >
+                <svg
+                    class="button-svg"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+
+                Delete an Individual
+            </button>
+
+        </footer>
+
+    </div>
+
+
+    <script
+        type="module"
+        src="js/site.js">
+    </script>
+
+</body>
+
+</html>
