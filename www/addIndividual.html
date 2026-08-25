@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    >
+
+    <title>Add Individual - OsteoMap</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+
+<body>
+
+    <div class="app">
+
+        <!-- Page Header -->
+        <header class="page-header">
+
+            <a
+                id="back-to-site-link"
+                href="site.html"
+                class="back-button"
+                aria-label="Back to Site"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M15 18l-6-6 6-6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+            </a>
+
+            <h1>Add Individual</h1>
+
+        </header>
+
+
+        <!-- Main Form -->
+        <main class="main-content">
+
+            <form
+                id="create-individual-form"
+                class="site-form"
+            >
+
+                <!-- Accession Number -->
+                <div class="form-group">
+
+                    <label for="accession-number">
+                        Accession Number
+                    </label>
+
+                    <input
+                        id="accession-number"
+                        name="accession-number"
+                        type="text"
+                        placeholder="ACC12345"
+                        autocomplete="off"
+                    >
+
+                </div>
+
+
+                <!-- Context / Grave -->
+                <div class="form-group">
+
+                    <label for="context-grave">
+                        Context / Grave (optional)
+                    </label>
+
+                    <input
+                        id="context-grave"
+                        name="context-grave"
+                        type="text"
+                        placeholder="Enter context or grave"
+                        autocomplete="off"
+                    >
+
+                </div>
+
+
+                <!-- Date -->
+                <div class="form-group">
+
+                    <label for="individual-date">
+                        Date
+                    </label>
+
+                    <input
+                        id="individual-date"
+                        name="individual-date"
+                        type="date"
+                    >
+
+                </div>
+
+
+                <!-- Developmental Age -->
+                <div class="form-group">
+
+                    <label for="developmental-age">
+                        Developmental Age
+                    </label>
+
+                    <select
+                        id="developmental-age"
+                        name="developmental-age"
+                    >
+                        <option value="">
+                            Select developmental age
+                        </option>
+
+                        <option value="Infant">
+                            Infant
+                        </option>
+
+                        <option value="Child">
+                            Child
+                        </option>
+
+                        <option value="Adolescent">
+                            Adolescent
+                        </option>
+
+                        <option value="Adult">
+                            Adult
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <!-- Notes -->
+                <div class="form-group">
+
+                    <label for="individual-notes">
+                        Notes
+                    </label>
+
+                    <textarea
+                        id="individual-notes"
+                        name="individual-notes"
+                        rows="6"
+                        placeholder="Enter notes"
+                    ></textarea>
+
+                </div>
+
+            </form>
+
+        </main>
+
+
+        <!-- Bottom Action -->
+        <footer class="bottom-actions">
+
+            <button
+                class="button button-primary"
+                type="submit"
+                form="create-individual-form"
+            >
+                Create Individual
+            </button>
+
+        </footer>
+
+    </div>
+
+
+    <script
+        type="module"
+        src="js/addIndividual.js"
+    ></script>
+
+</body>
+</html>
