@@ -645,6 +645,8 @@ body {
     }
 }
 
+/* Icon positioning */
+
 .form-group select {
     min-height: 56px;
     padding: 0 42px 0 13px;
