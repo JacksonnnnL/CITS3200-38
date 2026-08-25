@@ -151,3 +151,47 @@ export async function deleteIndividual(
         JSON.stringify(individuals)
     );
 }
+
+// ========================================
+// Delete Site
+// ========================================
+
+export async function deleteSite(
+    siteId
+) {
+
+    let sites =
+        JSON.parse(
+            localStorage.getItem("sites")
+        ) || [];
+
+    let individuals =
+        JSON.parse(
+            localStorage.getItem("individuals")
+        ) || [];
+
+
+    sites =
+        sites.filter(
+            site =>
+                site.id !== siteId
+        );
+
+
+    individuals =
+        individuals.filter(
+            individual =>
+                individual.siteId !== siteId
+        );
+
+
+    localStorage.setItem(
+        "sites",
+        JSON.stringify(sites)
+    );
+
+    localStorage.setItem(
+        "individuals",
+        JSON.stringify(individuals)
+    );
+}

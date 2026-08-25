@@ -13,6 +13,7 @@ document
 
         event.preventDefault();
 
+
         const siteCode =
             document
                 .getElementById("site-code")
