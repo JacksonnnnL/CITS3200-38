@@ -195,3 +195,23 @@ export async function deleteSite(
         JSON.stringify(individuals)
     );
 }
+
+// ========================================
+// Individual ID
+// ========================================
+
+export async function getIndividualById(
+    individualId
+) {
+
+    const individuals =
+        JSON.parse(
+            localStorage.getItem("individuals")
+        ) || [];
+
+
+    return individuals.find(
+        individual =>
+            individual.id === individualId
+    );
+}

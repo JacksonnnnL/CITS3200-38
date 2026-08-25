@@ -1,7 +1,10 @@
 import {
     getSiteById,
-    getIndividualsBySite
+    getIndividualsBySite,
+    deleteIndividual
 } from "./data.js";
+
+let deleteMode = false;
 
 
 // ========================================
@@ -120,3 +123,78 @@ const individuals =
     await getIndividualsBySite(siteId);
 
 renderIndividuals(individuals);
+
+// ========================================
+// Delete Individual Mode
+// ========================================
+
+document
+    .getElementById("delete-individual-button")
+    .addEventListener("click", () => {
+
+        deleteMode = !deleteMode;
+
+    });
+
+
+// ========================================
+// Individual Selection
+// ========================================
+
+document
+    .getElementById("individual-list")
+    .addEventListener("click", async (event) => {
+
+        const individualCard =
+            event.target.closest(".individual-card");
+
+        if (!individualCard) {
+            return;
+        }
+
+
+        const individualId =
+            individualCard.dataset.individualId;
+
+
+        // Delete selected Individual
+        if (deleteMode) {
+
+            const confirmed =
+                window.confirm(
+                    "Delete this individual?"
+                );
+
+
+            if (!confirmed) {
+                deleteMode = false;
+                return;
+            }
+
+
+            await deleteIndividual(
+                individualId
+            );
+
+
+            const individuals =
+                await getIndividualsBySite(
+                    siteId
+                );
+
+
+            renderIndividuals(
+                individuals
+            );
+
+
+            deleteMode = false;
+
+            return;
+        }
+
+
+        // Open selected Individual
+        window.location.href =
+            `individual.html?siteId=${siteId}&individualId=${individualId}`;
+    });

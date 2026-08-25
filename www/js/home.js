@@ -3,6 +3,7 @@ import {
     deleteSite
 } from "./data.js";
 
+
 let deleteMode = false;
 
 
@@ -54,6 +55,7 @@ function renderSites(sites) {
     });
 }
 
+
 // ========================================
 // Initial Page Load
 // ========================================
@@ -65,7 +67,7 @@ renderSites(sites);
 
 
 // ========================================
-// Delete Mode
+// Delete Site Mode
 // ========================================
 
 document
@@ -97,7 +99,6 @@ document
             siteCard.dataset.siteId;
 
 
-        // Delete selected Site
         if (deleteMode) {
 
             const confirmed =
@@ -125,7 +126,8 @@ document
 
             return;
         }
-       // Open selected Site
+
+
         window.location.href =
             `site.html?siteId=${siteId}`;
     });

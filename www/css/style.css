@@ -662,3 +662,101 @@ body {
     /* Controls how far the arrow sits from the right */
     background-position: right 13px center;
 }
+
+/* Individual List */
+
+.individual-list {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--card-gap);
+}
+
+
+/* Individual Card */
+
+.individual-card {
+    width: 100%;
+
+    background: var(--surface);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+
+    padding: 15px 15px 13px;
+
+    cursor: pointer;
+
+    transition:
+        transform 100ms ease,
+        border-color 100ms ease,
+        box-shadow 100ms ease;
+}
+
+.individual-card:active {
+    transform: scale(0.99);
+    border-color: var(--primary);
+}
+
+
+/* Individual Card Header */
+
+.individual-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+}
+
+.accession-number {
+    margin: 0;
+
+    min-width: 0;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    font-family: monospace;
+
+    font-size: 17px;
+    font-weight: 700;
+
+    letter-spacing: 0.8px;
+}
+
+.individual-date {
+    flex-shrink: 0;
+
+    padding: 4px 8px;
+
+    border-radius: 5px;
+
+    background: var(--background);
+
+    color: var(--text-muted);
+
+    font-family: monospace;
+    font-size: 12px;
+}
+
+
+/* Individual Details */
+
+.individual-context {
+    margin: 15px 0 7px;
+
+    font-size: 14px;
+
+    color: var(--text-muted);
+}
+
+.individual-age {
+    margin: 0;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    color: var(--text-muted);
+}
