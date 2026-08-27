@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
     "vitest": "^2.1.9"
   }
