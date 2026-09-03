@@ -48,6 +48,13 @@ export class ValidationError extends Error {
   }
 }
 
+export class NotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
 // ========================================
 // Connection handling
 // ========================================
@@ -143,8 +150,38 @@ async function withStore(storeName, mode, fn) {
   });
 }
 
+// crypto.randomUUID() needs a secure context (HTTPS, or localhost) and a
+// fairly recent browser — it's undefined when the app is opened over plain
+// HTTP/file:// or in an older WebView, which is a real scenario for this
+// project during dev and on-device testing. Fall back to building a v4 UUID
+// from crypto.getRandomValues() (much more widely supported), and only drop
+// to Math.random() if crypto itself isn't available at all.
 function newId() {
-  return crypto.randomUUID();
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+    return (
+      hex.slice(0, 4).join("") +
+      "-" +
+      hex.slice(4, 6).join("") +
+      "-" +
+      hex.slice(6, 8).join("") +
+      "-" +
+      hex.slice(8, 10).join("") +
+      "-" +
+      hex.slice(10, 16).join("")
+    );
+  }
+
+  // Last-resort fallback. Not cryptographically strong, but IDs here only
+  // need to be unique within one device's local database, not secure.
+  return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
 }
 
 // ========================================
@@ -227,6 +264,9 @@ export async function createContext({ siteId, code, notes = "" }) {
   const trimmedCode = (code || "").trim();
   if (!trimmedCode) throw new ValidationError("Context code is required");
 
+  const site = await getSiteById(siteId);
+  if (!site) throw new NotFoundError(`Site "${siteId}" does not exist`);
+
   const context = {
     id: newId(),
     siteId,
@@ -243,6 +283,10 @@ export async function getContextsBySite(siteId) {
   return withStore("contexts", "readonly", (store) =>
     requestToPromise(store.index("siteId").getAll(siteId))
   );
+}
+
+export async function getContextById(id) {
+  return withStore("contexts", "readonly", (store) => requestToPromise(store.get(id)));
 }
 
 export async function deleteContext(id) {
@@ -268,6 +312,19 @@ export async function createAccession({
 
   if (ageCategory && !Object.values(AGE_CATEGORIES).includes(ageCategory)) {
     throw new ValidationError(`Invalid age category: ${ageCategory}`);
+  }
+
+  const site = await getSiteById(siteId);
+  if (!site) throw new NotFoundError(`Site "${siteId}" does not exist`);
+
+  if (contextId) {
+    const context = await getContextById(contextId);
+    if (!context) throw new NotFoundError(`Context "${contextId}" does not exist`);
+    if (context.siteId !== siteId) {
+      throw new ValidationError(
+        `Context "${contextId}" belongs to a different site than "${siteId}"`
+      );
+    }
   }
 
   const accession = {
@@ -336,6 +393,9 @@ export async function setZoneState({ accessionId, bone, side = "", zone, state }
   if (!Object.values(PRESERVATION_STATES).includes(state)) {
     throw new ValidationError(`Invalid preservation state: ${state}`);
   }
+
+  const accession = await getAccessionById(accessionId);
+  if (!accession) throw new NotFoundError(`Accession "${accessionId}" does not exist`);
 
   const zoneState = {
     id: zoneStateId(accessionId, bone, side, zone),

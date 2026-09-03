@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 
 import {
   AGE_CATEGORIES,
   DuplicateSiteCodeError,
+  NotFoundError,
   PRESERVATION_STATES,
   ValidationError,
   __resetConnectionForTests,
@@ -111,6 +112,12 @@ describe("contexts", () => {
       ValidationError
     );
   });
+
+  it("rejects a context whose siteId does not reference a real site", async () => {
+    await expect(
+      createContext({ siteId: "does-not-exist", code: "C105" })
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
 });
 
 describe("accessions", () => {
@@ -131,6 +138,37 @@ describe("accessions", () => {
     const site = await createSite({ code: "WES001" });
     await expect(
       createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: "teenager" })
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("rejects an accession whose siteId does not reference a real site", async () => {
+    await expect(
+      createAccession({ siteId: "does-not-exist", accessionNumber: "SK023" })
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("rejects an accession whose contextId does not reference a real context", async () => {
+    const site = await createSite({ code: "WES001" });
+    await expect(
+      createAccession({
+        siteId: site.id,
+        contextId: "does-not-exist",
+        accessionNumber: "SK023",
+      })
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("rejects an accession whose contextId belongs to a different site", async () => {
+    const siteA = await createSite({ code: "WES001" });
+    const siteB = await createSite({ code: "WES002" });
+    const contextOnB = await createContext({ siteId: siteB.id, code: "C1" });
+
+    await expect(
+      createAccession({
+        siteId: siteA.id,
+        contextId: contextOnB.id,
+        accessionNumber: "SK023",
+      })
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
@@ -215,6 +253,17 @@ describe("zone states", () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it("rejects a zone state whose accessionId does not reference a real accession", async () => {
+    await expect(
+      setZoneState({
+        accessionId: "does-not-exist",
+        bone: "FEM",
+        zone: "Z01",
+        state: PRESERVATION_STATES.ABSENT,
+      })
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
   it("clears a zone state", async () => {
     const site = await createSite({ code: "WES001" });
     const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023" });
@@ -247,5 +296,42 @@ describe("zone states", () => {
 
     const states = await getZoneStatesByAccession(accession.id);
     expect(states).toHaveLength(2);
+  });
+});
+
+describe("id generation fallback", () => {
+  // crypto.randomUUID() is undefined outside a secure context (plain HTTP,
+  // file://, some WebViews) — this simulates that by stubbing out the
+  // global crypto object, the same way it's genuinely missing in the field.
+  // globalThis.crypto is a getter-only property in Node, so plain
+  // assignment (globalThis.crypto = ...) throws; vi.stubGlobal is built
+  // for exactly this.
+  const originalCrypto = globalThis.crypto;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("still creates records when crypto.randomUUID is unavailable", async () => {
+    vi.stubGlobal("crypto", {
+      getRandomValues: originalCrypto.getRandomValues.bind(originalCrypto),
+    });
+
+    const site = await createSite({ code: "WES001" });
+    expect(site.id).toBeTruthy();
+    expect(typeof site.id).toBe("string");
+
+    const again = await createSite({ code: "WES002" });
+    expect(again.id).not.toBe(site.id);
+  });
+
+  it("still creates records when crypto is unavailable at all", async () => {
+    vi.stubGlobal("crypto", undefined);
+
+    const site = await createSite({ code: "WES001" });
+    expect(site.id).toBeTruthy();
+
+    const again = await createSite({ code: "WES002" });
+    expect(again.id).not.toBe(site.id);
   });
 });
