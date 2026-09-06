@@ -640,3 +640,150 @@ body {
         min-height: 125px;
     }
 }
+
+/* Delete Mode */
+
+.site-card.delete-target {
+    border: 2px solid var(--danger);
+    padding: 14px 14px 12px;
+}
+
+.site-card.delete-target:active {
+    border-color: var(--danger);
+}
+
+.delete-mode-active {
+    background: #fff3f3;
+}
+
+
+/* Delete Confirmation Modal */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+
+    z-index: 1000;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    padding: var(--page-padding);
+
+    background: rgba(0, 0, 0, 0.38);
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+
+.modal-dialog {
+    width: 100%;
+    max-width: 390px;
+
+    padding: 22px;
+
+    background: var(--surface);
+
+    border-radius: var(--radius);
+
+    box-shadow:
+        0 12px 35px
+        rgba(0, 0, 0, 0.18);
+}
+
+
+.modal-dialog h2 {
+    margin: 0 0 10px;
+
+    font-size: 20px;
+    font-weight: 800;
+}
+
+
+.modal-dialog p {
+    margin: 0 0 22px;
+
+    color: var(--text-muted);
+
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+
+/* Modal Buttons */
+
+.modal-actions {
+    display: flex;
+
+    gap: 10px;
+}
+
+
+.modal-button {
+    flex: 1;
+
+    min-height: 48px;
+
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+
+.modal-button-cancel {
+    border: 1px solid var(--border);
+
+    background: var(--surface);
+    color: var(--text);
+}
+
+
+.modal-button-cancel:active {
+    background: var(--background);
+}
+
+
+.modal-button-delete {
+    border: 2px solid var(--danger);
+
+    background: var(--danger);
+    color: #ffffff;
+}
+
+
+.modal-button-delete:active {
+    background: var(--danger-text);
+}
+
+/* Form Label / Error */
+
+.form-label-row {
+    width: 100%;
+
+    display: flex;
+    align-items: baseline;
+
+    gap: 12px;
+}
+
+.form-label-row label {
+    flex-shrink: 0;
+}
+
+.field-error {
+    margin-left: auto;
+
+    color: var(--danger-text);
+
+    font-size: 13px;
+    font-weight: 600;
+
+    text-align: right;
+}
