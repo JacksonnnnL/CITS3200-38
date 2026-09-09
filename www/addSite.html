@@ -11,7 +11,7 @@
 
     <title>Add New Site - OsteoMap</title>
 
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 
 
@@ -57,9 +57,19 @@
 
                 <div class="form-group">
 
-                    <label for="site-code">
-                        Site Code
-                    </label>
+                    <div class="form-label-row">
+
+                        <label for="site-code">
+                            Site Code
+                        </label>
+
+                        <span
+                            id="site-code-error"
+                            class="field-error"
+                            aria-live="polite"
+                        ></span>
+
+                    </div>
 
                     <input
                         id="site-code"
@@ -97,7 +107,7 @@
 
             <button
                 class="button button-primary"
-                type="button"
+                type="submit"
                 form="create-site-form"
             >
                 Create Site
@@ -106,6 +116,8 @@
         </footer>
 
     </div>
+
+    <script type="module" src="js/addSite.js"></script>
 
 </body>
 </html>
