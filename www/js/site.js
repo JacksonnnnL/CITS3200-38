@@ -108,6 +108,7 @@ document
         }
     );
 
+
 // ========================================
 // Add Individual Navigation
 // ========================================
@@ -124,7 +125,7 @@ document
         }
     );
 
-        
+
 // ========================================
 // Context Lookup
 // ========================================
@@ -262,6 +263,7 @@ async function loadIndividuals() {
 
 await loadIndividuals();
 
+
 // ========================================
 // Delete Individual Mode
 // ========================================
@@ -330,16 +332,32 @@ document
             }
 
 
-            // Normal mode
-            if (!deleteMode) {
-                return;
-            }
-
-
-            selectedIndividualId =
+            const individualId =
                 individualCard
                     .dataset
                     .individualId;
+
+
+            // ========================================
+            // Normal Mode - Open Skeleton Overview
+            // ========================================
+
+            if (!deleteMode) {
+
+                window.location.href =
+                    `skeletons_overview.html?accessionId=${encodeURIComponent(individualId)}`;
+
+                return;
+
+            }
+
+
+            // ========================================
+            // Delete Mode - Select Individual
+            // ========================================
+
+            selectedIndividualId =
+                individualId;
 
 
             const accessionNumber =
