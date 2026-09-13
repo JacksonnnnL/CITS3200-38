@@ -185,12 +185,29 @@ siteList.addEventListener(
             return;
         }
 
+        const siteId =
+            siteCard.dataset.siteId;
+
+
+        // ========================================
+        // Normal Mode - Open Site
+        // ========================================
+
         if (!deleteMode) {
+
+            window.location.href =
+                `site.html?siteId=${encodeURIComponent(siteId)}`;
+
             return;
         }
 
+
+        // ========================================
+        // Delete Mode - Select Site
+        // ========================================
+
         selectedSiteId =
-            siteCard.dataset.siteId;
+            siteId;
 
         const siteCode =
             siteCard
