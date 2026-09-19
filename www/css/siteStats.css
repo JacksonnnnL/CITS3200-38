@@ -1,0 +1,101 @@
+/* Site Bone Summary (site.html) — uses the tokens defined in style.css */
+
+.site-stats {
+    margin-top: 28px;
+    padding: 18px;
+
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+}
+
+.site-stats-title {
+    margin: 0 0 14px;
+
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.site-stats-subtitle {
+    margin: 18px 0 8px;
+
+    color: var(--text-muted);
+
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.site-stats-mni {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.site-stats-mni-value {
+    color: var(--primary);
+
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.site-stats-mni-label {
+    color: var(--text-muted);
+
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.site-stats-empty {
+    margin: 14px 0 0;
+
+    color: var(--text-muted);
+
+    font-size: 14px;
+}
+
+.site-stats-list {
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+}
+
+.site-stats-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    padding: 10px 0;
+
+    border-top: 1px solid var(--border-light);
+}
+
+.site-stats-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.site-stats-code {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.site-stats-label {
+    color: var(--text-muted);
+
+    font-size: 13px;
+}
+
+.site-stats-count {
+    flex-shrink: 0;
+
+    color: var(--text);
+
+    font-size: 14px;
+    font-weight: 700;
+}
