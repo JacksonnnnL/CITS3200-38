@@ -33,8 +33,6 @@ if (!accessionId) {
 // Segment Configuration
 // ========================================
 
-// `file` is just the file name. The folder is decided at runtime
-// by folderForAge() based on the individual's age category.
 const SEGMENTS = [
     { id: 'cranium',     label: 'Cranium',      file: 'cranium.svg',          status: 'have' },
     { id: 'axial',       label: 'Axial',        file: 'axial_skeleton.svg',   status: 'have' },
@@ -58,6 +56,7 @@ let currentFolder = null;
 let savedStates = [];
 
 const HIGHLIGHT = '#007f7a';
+const PRESENT_STATE = 'present-complete';
 
 // ========================================
 // Shape Helpers
@@ -89,6 +88,7 @@ const selectedZoneLabel = document.getElementById('selected-zone-label');
 const selectedSegmentName = document.getElementById('selected-segment-name');
 const segmentTabs = document.getElementById('segment-tabs');
 const detailsCloseButton = document.getElementById('details-close');
+const allPresentButton = document.getElementById('all-present-button');   // NEW
 
 // ========================================
 // Close Details Box
@@ -211,9 +211,14 @@ async function loadSegment(segmentId) {
     if (!segment || segment.status === 'missing') return;
     if (!currentFolder) return;
 
+    // NEW: disable the All Present button while the SVG loads
+    allPresentButton.disabled = true;
+
     currentSegment = segmentId;
 
     document.querySelectorAll('.segment-tab').forEach(tab => {
+        // Don't touch the All Present button here
+        if (tab.id === 'all-present-button') return;
         tab.classList.toggle('active', tab.dataset.segment === segmentId);
     });
 
@@ -230,8 +235,6 @@ async function loadSegment(segmentId) {
 
         container.innerHTML = svgText;
 
-        // Tag the container with the current segment id so CSS can
-        // target specific segments (e.g. the cranium's scroller).
         container.dataset.segment = segmentId;
 
         applyColorsAndMakeClickable();
@@ -245,6 +248,9 @@ async function loadSegment(segmentId) {
                 <span style="font-size:14px;">${error.message}</span>
             </div>
         `;
+
+        // NEW: on failure, make sure the button stays disabled
+        allPresentButton.disabled = true;
     }
 }
 
@@ -252,8 +258,6 @@ async function loadSegment(segmentId) {
 // Apply Colors & Make Bones Clickable
 // ========================================
 
-// Key on <g id> groups, not path ids — path ids inside the SVGs
-// are non-unique ("Vector", "Vector_2", ...), group ids are unique.
 function applyColorsAndMakeClickable() {
     const allGroups = container.querySelectorAll('g[id]');
     const boneElements = [];
@@ -317,6 +321,9 @@ function applyColorsAndMakeClickable() {
             });
         });
     });
+
+    // NEW: enable the All Present button only if we actually found bones
+    allPresentButton.disabled = (boneElements.length === 0);
 }
 
 // ========================================
@@ -423,9 +430,6 @@ document.querySelectorAll('#details-box .state-btn').forEach(btn => {
                     zone: selectedBone
                 });
             } else {
-                // TODO (future): when zonation lands, `zone` must come
-                // from the clicked SVG element and `boneStates` must be
-                // keyed by bone+side+zone.
                 await setZoneState({
                     accessionId: accessionId,
                     bone: selectedBone,
@@ -439,6 +443,68 @@ document.querySelectorAll('#details-box .state-btn').forEach(btn => {
             alert('Failed to save bone state. Please try again.');
         }
     });
+});
+
+// ========================================
+// All Present (bulk action)
+// ========================================
+
+allPresentButton.addEventListener('click', async () => {
+    if (!currentSegment) {
+        return;
+    }
+
+    const boneElements = [];
+
+    container.querySelectorAll('g[id]').forEach(group => {
+        const id = group.id.trim();
+
+        if (isNonBoneId(id)) return;
+        if (isGhostGroup(group)) return;
+        if (hasRealBoneSubgroups(group)) return;
+
+        boneElements.push(group);
+    });
+
+    if (boneElements.length === 0) {
+        alert('No bones to mark in this segment.');
+        return;
+    }
+
+    allPresentButton.disabled = true;
+
+    try {
+        for (const group of boneElements) {
+            const boneId = group.id.trim();
+
+            group
+                .querySelectorAll('path, polygon, circle, ellipse, rect')
+                .forEach(shape => {
+                    if (isDecorativeShape(shape)) return;
+                    shape.style.fill = STATE_COLORS[PRESENT_STATE];
+                });
+
+            boneStates[boneId] = PRESENT_STATE;
+
+            await setZoneState({
+                accessionId: accessionId,
+                bone: boneId,
+                side: '',
+                zone: boneId,
+                state: PRESENT_STATE
+            });
+        }
+
+        if (selectedBone && boneStates[selectedBone] === PRESENT_STATE) {
+            detailStatusText.textContent = STATE_LABELS[PRESENT_STATE];
+            detailStatusDot.style.background = STATE_DOTS[PRESENT_STATE];
+        }
+    } catch (error) {
+        console.error('Failed to mark all bones present:', error);
+        alert('Failed to mark all bones present. Please try again.');
+    } finally {
+        allPresentButton.disabled = false;
+    }
 });
 
 // ========================================
