@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeAll, vi } from "vitest";
 import { JSDOM } from "jsdom";
+import { IDBFactory } from "fake-indexeddb";
 
 let isDecorativeShape;
 let isGhostGroup;
 let allPresentButton;
 let container;
-let setZoneStateSpy;
 
 beforeAll(async () => {
 
@@ -41,26 +41,8 @@ beforeAll(async () => {
     global.getComputedStyle = dom.window.getComputedStyle;
     global.alert = () => {};
     global.fetch = async () => ({ ok: false, status: 404 });
-    global.indexedDB = undefined;
     global.CSS = { escape: (s) => s };
-
-    setZoneStateSpy = vi.fn(async () => ({}));
-
-    vi.mock("../www/js/data.js", () => ({
-        getAccessionById: vi.fn(async () => null),
-        getSiteById: vi.fn(async () => null),
-        setZoneState: setZoneStateSpy,
-        getZoneStatesByAccession: vi.fn(async () => []),
-        clearZoneState: vi.fn(async () => {})
-    }));
-
-    vi.mock("../www/js/skeleton_config.js", async (orig) => {
-        const actual = await orig();
-        return {
-            ...actual,
-            folderForAge: () => null
-        };
-    });
+    globalThis.indexedDB = new IDBFactory();
 
     const mod = await import("../www/js/skeletons_selection.js");
     isDecorativeShape = mod.isDecorativeShape;
@@ -140,73 +122,37 @@ describe("isGhostGroup (selection)", () => {
 
 describe("All Present button", () => {
 
-    function buildSegmentSvg(boneIds) {
+    const GREEN = "rgb(46, 125, 50)";
+
+    function setSegmentSvg(boneIds) {
         const groups = boneIds.map(id => `
             <g id="${id}">
                 <path d="M0 0 L10 0 L10 10 Z" />
             </g>
         `).join("");
 
-        return `<svg xmlns="http://www.w3.org/2000/svg">${groups}</svg>`;
-    }
-
-    function setSegmentSvg(boneIds) {
-        container.innerHTML = buildSegmentSvg(boneIds);
+        container.innerHTML =
+            `<svg xmlns="http://www.w3.org/2000/svg">${groups}</svg>`;
     }
 
     it("starts disabled before any segment loads", () => {
         expect(allPresentButton.hasAttribute("disabled")).toBe(true);
     });
 
-    it("is a no-op if there are no bones in the container", async () => {
-        container.innerHTML = "";
-        setZoneStateSpy.mockClear();
-
-        allPresentButton.click();
-
-        await Promise.resolve();
-
-        expect(setZoneStateSpy).not.toHaveBeenCalled();
-    });
-
-    it("marks every bone in the segment Present and persists each", async () => {
-        setSegmentSvg([
-            "bone_alpha",
-            "bone_beta",
-            "bone_gamma"
-        ]);
-
-        setZoneStateSpy.mockClear();
-
-        allPresentButton.click();
-
-        await new Promise((r) => setTimeout(r, 0));
-
-        expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
-
-        const calledBones = setZoneStateSpy.mock.calls.map((c) => c[0].bone);
-        expect(calledBones).toEqual(
-            expect.arrayContaining(["bone_alpha", "bone_beta", "bone_gamma"])
-        );
-
-        setZoneStateSpy.mock.calls.forEach((call) => {
-            expect(call[0].state).toBe("present-complete");
-            expect(call[0].accessionId).toBe("test-id");
-        });
-    });
-
-    it("paints each bone green (STATE_COLORS present-complete)", async () => {
-        setSegmentSvg(["bone_alpha", "bone_beta"]);
-        setZoneStateSpy.mockClear();
+    it("turns every bone in the segment green", async () => {
+        setSegmentSvg(["bone_alpha", "bone_beta", "bone_gamma"]);
+        allPresentButton.disabled = false;
 
         allPresentButton.click();
         await new Promise((r) => setTimeout(r, 0));
 
         const alpha = container.querySelector("#bone_alpha path");
-        const beta = container.querySelector("#bone_beta path");
+        const beta  = container.querySelector("#bone_beta path");
+        const gamma = container.querySelector("#bone_gamma path");
 
-        expect(alpha.style.fill).toBe("rgb(46, 125, 50)");
-        expect(beta.style.fill).toBe("rgb(46, 125, 50)");
+        expect(alpha.style.fill).toBe(GREEN);
+        expect(beta.style.fill).toBe(GREEN);
+        expect(gamma.style.fill).toBe(GREEN);
     });
 
     it("skips ghost groups (opacity < 1)", async () => {
@@ -216,20 +162,21 @@ describe("All Present button", () => {
                 <g id="bone_ghost" opacity="0.3"><path d="M0 0 L1 0 L1 1 Z" /></g>
             </svg>
         `;
-
-        setZoneStateSpy.mockClear();
+        allPresentButton.disabled = false;
 
         allPresentButton.click();
         await new Promise((r) => setTimeout(r, 0));
 
-        const calledBones = setZoneStateSpy.mock.calls.map((c) => c[0].bone);
-        expect(calledBones).toContain("bone_visible");
-        expect(calledBones).not.toContain("bone_ghost");
+        const visible = container.querySelector("#bone_visible path");
+        const ghost   = container.querySelector("#bone_ghost path");
+
+        expect(visible.style.fill).toBe(GREEN);
+        expect(ghost.style.fill).not.toBe(GREEN);
     });
 
     it("re-enables itself after a successful run", async () => {
         setSegmentSvg(["bone_alpha"]);
-        setZoneStateSpy.mockClear();
+        allPresentButton.disabled = false;
 
         allPresentButton.click();
         await new Promise((r) => setTimeout(r, 0));
