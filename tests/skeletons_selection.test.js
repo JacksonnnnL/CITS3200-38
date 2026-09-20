@@ -1,18 +1,11 @@
-import { describe, expect, it, beforeAll } from "vitest";
+import { describe, expect, it, beforeAll, vi } from "vitest";
 import { JSDOM } from "jsdom";
-
-
-// ============================================
-// Mock DOM before importing the module
-// ============================================
-//
-// skeletons_selection.js reads window.location and grabs several
-// DOM elements at import time. We set up a jsdom document with
-// those ids (and a URL with an accessionId so the top-level
-// redirect check doesn't fire) before importing.
 
 let isDecorativeShape;
 let isGhostGroup;
+let allPresentButton;
+let container;
+let setZoneStateSpy;
 
 beforeAll(async () => {
 
@@ -22,7 +15,10 @@ beforeAll(async () => {
             <span id="site-display"></span>
             <button id="back-to-overview-button"></button>
             <div id="segment-tabs"></div>
-            <div id="selected-segment-name"></div>
+            <div class="selected-row">
+                <div id="selected-segment-name"></div>
+                <button id="all-present-button" class="segment-tab" disabled></button>
+            </div>
             <div id="skeleton-select-container"></div>
             <div id="selected-info">
                 <span id="selected-zone-label"></span>
@@ -45,17 +41,34 @@ beforeAll(async () => {
     global.getComputedStyle = dom.window.getComputedStyle;
     global.alert = () => {};
     global.fetch = async () => ({ ok: false, status: 404 });
-    global.indexedDB = undefined; // not touched during tests
+    global.indexedDB = undefined;
+    global.CSS = { escape: (s) => s };
+
+    setZoneStateSpy = vi.fn(async () => ({}));
+
+    vi.mock("../www/js/data.js", () => ({
+        getAccessionById: vi.fn(async () => null),
+        getSiteById: vi.fn(async () => null),
+        setZoneState: setZoneStateSpy,
+        getZoneStatesByAccession: vi.fn(async () => []),
+        clearZoneState: vi.fn(async () => {})
+    }));
+
+    vi.mock("../www/js/skeleton_config.js", async (orig) => {
+        const actual = await orig();
+        return {
+            ...actual,
+            folderForAge: () => null
+        };
+    });
 
     const mod = await import("../www/js/skeletons_selection.js");
     isDecorativeShape = mod.isDecorativeShape;
     isGhostGroup = mod.isGhostGroup;
+
+    allPresentButton = document.getElementById("all-present-button");
+    container = document.getElementById("skeleton-select-container");
 });
-
-
-// ============================================
-// isDecorativeShape
-// ============================================
 
 describe("isDecorativeShape (selection)", () => {
 
@@ -92,11 +105,6 @@ describe("isDecorativeShape (selection)", () => {
 
 });
 
-
-// ============================================
-// isGhostGroup
-// ============================================
-
 describe("isGhostGroup (selection)", () => {
 
     it("returns true when the group has opacity < 1 as an attribute", () => {
@@ -126,6 +134,107 @@ describe("isGhostGroup (selection)", () => {
         const doc = dom.window.document;
 
         expect(isGhostGroup(doc.getElementById("g1"))).toBe(false);
+    });
+
+});
+
+describe("All Present button", () => {
+
+    function buildSegmentSvg(boneIds) {
+        const groups = boneIds.map(id => `
+            <g id="${id}">
+                <path d="M0 0 L10 0 L10 10 Z" />
+            </g>
+        `).join("");
+
+        return `<svg xmlns="http://www.w3.org/2000/svg">${groups}</svg>`;
+    }
+
+    function setSegmentSvg(boneIds) {
+        container.innerHTML = buildSegmentSvg(boneIds);
+    }
+
+    it("starts disabled before any segment loads", () => {
+        expect(allPresentButton.hasAttribute("disabled")).toBe(true);
+    });
+
+    it("is a no-op if there are no bones in the container", async () => {
+        container.innerHTML = "";
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+
+        await Promise.resolve();
+
+        expect(setZoneStateSpy).not.toHaveBeenCalled();
+    });
+
+    it("marks every bone in the segment Present and persists each", async () => {
+        setSegmentSvg([
+            "bone_alpha",
+            "bone_beta",
+            "bone_gamma"
+        ]);
+
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
+
+        const calledBones = setZoneStateSpy.mock.calls.map((c) => c[0].bone);
+        expect(calledBones).toEqual(
+            expect.arrayContaining(["bone_alpha", "bone_beta", "bone_gamma"])
+        );
+
+        setZoneStateSpy.mock.calls.forEach((call) => {
+            expect(call[0].state).toBe("present-complete");
+            expect(call[0].accessionId).toBe("test-id");
+        });
+    });
+
+    it("paints each bone green (STATE_COLORS present-complete)", async () => {
+        setSegmentSvg(["bone_alpha", "bone_beta"]);
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        const alpha = container.querySelector("#bone_alpha path");
+        const beta = container.querySelector("#bone_beta path");
+
+        expect(alpha.style.fill).toBe("rgb(46, 125, 50)");
+        expect(beta.style.fill).toBe("rgb(46, 125, 50)");
+    });
+
+    it("skips ghost groups (opacity < 1)", async () => {
+        container.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg">
+                <g id="bone_visible"><path d="M0 0 L1 0 L1 1 Z" /></g>
+                <g id="bone_ghost" opacity="0.3"><path d="M0 0 L1 0 L1 1 Z" /></g>
+            </svg>
+        `;
+
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        const calledBones = setZoneStateSpy.mock.calls.map((c) => c[0].bone);
+        expect(calledBones).toContain("bone_visible");
+        expect(calledBones).not.toContain("bone_ghost");
+    });
+
+    it("re-enables itself after a successful run", async () => {
+        setSegmentSvg(["bone_alpha"]);
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(allPresentButton.hasAttribute("disabled")).toBe(false);
     });
 
 });
