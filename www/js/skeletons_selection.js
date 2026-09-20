@@ -16,10 +16,6 @@ import {
     UNMARKED
 } from './skeleton_config.js';
 
-// ========================================
-// URL Params
-// ========================================
-
 const urlParams = new URLSearchParams(window.location.search);
 const accessionId = urlParams.get('accessionId');
 const segmentParam = urlParams.get('segment');
@@ -28,10 +24,6 @@ if (!accessionId) {
     alert('No individual specified!');
     window.location.href = 'index.html';
 }
-
-// ========================================
-// Segment Configuration
-// ========================================
 
 const SEGMENTS = [
     { id: 'cranium',     label: 'Cranium',      file: 'cranium.svg',          status: 'have' },
@@ -43,10 +35,6 @@ const SEGMENTS = [
     { id: 'left-lower',  label: 'L Lower Limb', file: 'left_lower_limb.svg',  status: 'have' }
 ];
 
-// ========================================
-// State
-// ========================================
-
 let currentAccession = null;
 let currentSite = null;
 let selectedBone = null;
@@ -57,10 +45,6 @@ let savedStates = [];
 
 const HIGHLIGHT = '#007f7a';
 const PRESENT_STATE = 'present-complete';
-
-// ========================================
-// Shape Helpers
-// ========================================
 
 export function isGhostGroup(group) {
     const attr = group.getAttribute('opacity');
@@ -75,10 +59,6 @@ export function isDecorativeShape(shape) {
     return false;
 }
 
-// ========================================
-// DOM References
-// ========================================
-
 const container = document.getElementById('skeleton-select-container');
 const detailsBox = document.getElementById('details-box');
 const detailBoneName = document.getElementById('detail-bone-name');
@@ -88,11 +68,7 @@ const selectedZoneLabel = document.getElementById('selected-zone-label');
 const selectedSegmentName = document.getElementById('selected-segment-name');
 const segmentTabs = document.getElementById('segment-tabs');
 const detailsCloseButton = document.getElementById('details-close');
-const allPresentButton = document.getElementById('all-present-button');   // NEW
-
-// ========================================
-// Close Details Box
-// ========================================
+const allPresentButton = document.getElementById('all-present-button');
 
 function closeDetailsBox() {
     detailsBox.style.display = 'none';
@@ -109,10 +85,6 @@ function closeDetailsBox() {
             });
     });
 }
-
-// ========================================
-// Load Data
-// ========================================
 
 async function loadData() {
     try {
@@ -171,10 +143,6 @@ async function loadData() {
     }
 }
 
-// ========================================
-// Render Segment Tabs
-// ========================================
-
 function renderSegmentTabs() {
     segmentTabs.innerHTML = '';
 
@@ -202,22 +170,16 @@ function renderSegmentTabs() {
     });
 }
 
-// ========================================
-// Load Segment SVG
-// ========================================
-
 async function loadSegment(segmentId) {
     const segment = SEGMENTS.find(s => s.id === segmentId);
     if (!segment || segment.status === 'missing') return;
     if (!currentFolder) return;
 
-    // NEW: disable the All Present button while the SVG loads
     allPresentButton.disabled = true;
 
     currentSegment = segmentId;
 
     document.querySelectorAll('.segment-tab').forEach(tab => {
-        // Don't touch the All Present button here
         if (tab.id === 'all-present-button') return;
         tab.classList.toggle('active', tab.dataset.segment === segmentId);
     });
@@ -249,14 +211,9 @@ async function loadSegment(segmentId) {
             </div>
         `;
 
-        // NEW: on failure, make sure the button stays disabled
         allPresentButton.disabled = true;
     }
 }
-
-// ========================================
-// Apply Colors & Make Bones Clickable
-// ========================================
 
 function applyColorsAndMakeClickable() {
     const allGroups = container.querySelectorAll('g[id]');
@@ -322,13 +279,8 @@ function applyColorsAndMakeClickable() {
         });
     });
 
-    // NEW: enable the All Present button only if we actually found bones
     allPresentButton.disabled = (boneElements.length === 0);
 }
-
-// ========================================
-// Handle Bone Click
-// ========================================
 
 function handleBoneClick(element) {
     const boneId = element.id.trim();
@@ -375,18 +327,10 @@ function handleBoneClick(element) {
     selectedZoneLabel.textContent = boneId;
 }
 
-// ========================================
-// Close Button
-// ========================================
-
 detailsCloseButton.addEventListener('click', (e) => {
     e.stopPropagation();
     closeDetailsBox();
 });
-
-// ========================================
-// State Buttons (Present, Fragmented, Absent)
-// ========================================
 
 document.querySelectorAll('#details-box .state-btn').forEach(btn => {
     btn.addEventListener('click', async function() {
@@ -405,7 +349,6 @@ document.querySelectorAll('#details-box .state-btn').forEach(btn => {
 
         const currentState = boneStates[selectedBone];
 
-        // Toggle off if the same state is tapped again.
         let finalState = (currentState === newState) ? null : newState;
 
         const fillColor = STATE_COLORS[finalState || UNMARKED];
@@ -445,15 +388,7 @@ document.querySelectorAll('#details-box .state-btn').forEach(btn => {
     });
 });
 
-// ========================================
-// All Present (bulk action)
-// ========================================
-
 allPresentButton.addEventListener('click', async () => {
-    if (!currentSegment) {
-        return;
-    }
-
     const boneElements = [];
 
     container.querySelectorAll('g[id]').forEach(group => {
@@ -506,10 +441,6 @@ allPresentButton.addEventListener('click', async () => {
         allPresentButton.disabled = false;
     }
 });
-
-// ========================================
-// Start
-// ========================================
 
 document.addEventListener('DOMContentLoaded', function() {
     loadData();
