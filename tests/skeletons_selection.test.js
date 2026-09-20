@@ -2,6 +2,19 @@ import { describe, expect, it, beforeAll, vi } from "vitest";
 import { JSDOM } from "jsdom";
 import { IDBFactory } from "fake-indexeddb";
 
+const { setZoneStateSpy } = vi.hoisted(() => ({
+    setZoneStateSpy: vi.fn(async () => ({}))
+}));
+
+vi.mock("../www/js/data.js", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        setZoneState: setZoneStateSpy,
+        clearZoneState: vi.fn(async () => {})
+    };
+});
+
 let isDecorativeShape;
 let isGhostGroup;
 let allPresentButton;
@@ -122,7 +135,7 @@ describe("isGhostGroup (selection)", () => {
 
 describe("All Present button", () => {
 
-    const GREEN = "rgb(46, 125, 50)";
+    const GREEN = "#2e7d32";
 
     function setSegmentSvg(boneIds) {
         const groups = boneIds.map(id => `
@@ -142,6 +155,7 @@ describe("All Present button", () => {
     it("turns every bone in the segment green", async () => {
         setSegmentSvg(["bone_alpha", "bone_beta", "bone_gamma"]);
         allPresentButton.disabled = false;
+        setZoneStateSpy.mockClear();
 
         allPresentButton.click();
         await new Promise((r) => setTimeout(r, 0));
