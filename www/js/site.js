@@ -328,20 +328,20 @@ document
             if (!individualCard) {
                 return;
             }
-
-
-            // Normal mode
-            if (!deleteMode) {
-                return;
-            }
-
-
+            
             selectedIndividualId =
                 individualCard
                     .dataset
                     .individualId;
+            
+            // Normal mode
+            if (!deleteMode) {
+                window.location.href =
+                    `skeletons_overview.html?accessionId=${encodeURIComponent(selectedIndividualId)}`;
+                return;
+            }
 
-
+            // Delete mode
             const accessionNumber =
                 individualCard
                     .querySelector(
@@ -349,8 +349,7 @@ document
                     )
                     .textContent
                     .trim();
-
-
+            
             deleteIndividualMessage.textContent =
                 `Are you sure you want to delete Individual ${accessionNumber}?`;
 
