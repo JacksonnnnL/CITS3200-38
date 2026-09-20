@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Skeleton Overview - OsteoMap</title>
+    <link rel="stylesheet" href="css/style.css?v=4">
+</head>
+<body>
+
+    <div class="app">
+
+        <!-- ====== HEADER ====== -->
+        <header class="page-header">
+
+            <button
+                id="back-to-site-button"
+                class="back-button"
+                type="button"
+                aria-label="Back to Site"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M15 18l-6-6 6-6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+            </button>
+
+            <div>
+                <h1 style="margin:0;font-size:clamp(18px,5vw,24px);">
+                    <span id="accession-display">---</span>
+                </h1>
+                <div style="color: var(--primary); font-weight: 700; font-size: 14px;">
+                    Site: <span id="site-display">---</span>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- ====== MAIN ====== -->
+        <main class="main-content">
+
+            <!-- ====== DATE ====== -->
+            <div class="form-group">
+                <div style="font-size:16px;font-weight:600;color:var(--text);padding:4px 0;">
+                    Date: <span id="individual-date-display">---</span>
+                </div>
+            </div>
+
+            <!-- ====== NOTES ====== -->
+            <div class="form-group">
+                <label for="notes-description">Notes</label>
+                <textarea id="notes-description" rows="2" placeholder="Enter notes..."></textarea>
+            </div>
+
+            <!-- ====== LEGEND ====== -->
+            <div id="legend">
+                <span class="item"><span class="dot green"></span> Present</span>
+                <span class="item"><span class="dot orange"></span> Fragmented</span>
+                <span class="item"><span class="dot grey"></span> Absent</span>
+                <span class="item"><span class="dot white"></span> Unmarked</span>
+            </div>
+
+            <!-- ====== SKELETON BOARD — thumbnails are tappable ====== -->
+            <h3 style="margin:8px 0 4px 0;">Skeleton Segments:</h3>
+            <div id="skeleton-board">
+                <div class="skeleton-placeholder">
+                    Loading skeleton segments...
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ====== BOTTOM ACTIONS - Expand button ====== -->
+        <footer class="bottom-actions-expand">
+            <button id="expand-btn" class="button" type="button">
+                Expand
+            </button>
+        </footer>
+
+    </div>
+
+    <script type="module" src="js/skeletons_overview.js?v=4"></script>
+
+</body>
+</html>
