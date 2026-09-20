@@ -11,20 +11,19 @@
 
     <title>Site - OsteoMap</title>
 
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 
 <body>
 
     <div class="app">
 
-        <!-- Page Header -->
         <header class="page-header">
 
-            <button
+            <a
                 id="back-to-sites-button"
+                href="index.html"
                 class="back-button"
-                type="button"
                 aria-label="Back to Available Sites"
             >
                 <svg
@@ -40,7 +39,7 @@
                         stroke-linejoin="round"
                     />
                 </svg>
-            </button>
+            </a>
 
             <div class="site-header-details">
 
@@ -60,12 +59,10 @@
         </header>
 
 
-        <!-- Main Content -->
         <main class="main-content">
 
             <section class="individuals-section">
 
-                <!-- Individuals Heading -->
                 <div class="section-heading">
 
                     <h2>
@@ -98,20 +95,16 @@
                 </div>
 
 
-                <!-- Individual List -->
                 <div
                     id="individual-list"
                     class="individual-list"
-                >
-                    <!-- Individual cards inserted by site.js -->
-                </div>
+                ></div>
 
             </section>
 
         </main>
 
 
-        <!-- Bottom Actions -->
         <footer class="bottom-actions">
 
             <button
@@ -153,11 +146,12 @@
 
     </div>
 
-     <!-- Delete Individual Confirmation Modal -->
+
     <div
         id="delete-individual-modal"
         class="modal-overlay"
     >
+
         <div
             class="modal-dialog"
             role="dialog"
@@ -194,8 +188,10 @@
             </div>
 
         </div>
+
     </div>
-    
+
+
     <script
         type="module"
         src="js/site.js"

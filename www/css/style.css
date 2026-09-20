@@ -663,6 +663,197 @@ body {
     display: flex;
     flex-direction: column;
 
+    gap: 2px;
+}
+
+
+.form-group label {
+    font-size: 15px;
+    font-weight: 700;
+
+    color: var(--text);
+}
+
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+
+    min-width: 0;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    font-family: monospace;
+    font-size: clamp(20px, 5vw, 24px);
+    font-weight: 800;
+
+    letter-spacing: 0.5px;
+}
+
+
+.form-group input,
+.form-group select {
+    min-height: 56px;
+
+.site-header-location {
+    margin: 0;
+
+
+.form-group select {
+    cursor: pointer;
+}
+
+
+    font-family: monospace;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    letter-spacing: 0.4px;
+
+    text-transform: uppercase;
+}
+
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    border-color: var(--primary);
+
+    gap: 5px;
+
+    color: var(--text-muted);
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #929999;
+}
+
+
+.site-card.delete-target {
+    border: 2px solid var(--danger);
+
+    padding: 14px 14px 12px;
+}
+
+
+.site-card.delete-target:active {
+    border-color: var(--danger);
+}
+
+
+.individual-card.delete-target {
+    border: 2px solid var(--danger);
+
+    padding: 14px;
+}
+
+
+.individual-card.delete-target:active {
+    border-color: var(--danger);
+}
+
+
+    cursor: pointer;
+
+    transition:
+        transform 100ms ease,
+        border-color 100ms ease,
+        box-shadow 100ms ease;
+}
+
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+
+.individual-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+}
+
+
+.accession-number {
+    margin: 0;
+
+    min-width: 0;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    font-family: monospace;
+
+    font-size: 16px;
+    font-weight: 700;
+
+    letter-spacing: 0.5px;
+}
+
+
+.individual-date {
+    flex-shrink: 0;
+
+    padding: 4px 7px;
+
+    border-radius: 5px;
+
+    background: #f2f4f4;
+
+    color: var(--text-muted);
+
+    font-family: monospace;
+
+    font-size: 11px;
+    font-weight: 600;
+
+    white-space: nowrap;
+}
+
+
+.individual-context {
+    margin: 12px 0 0;
+
+    color: var(--text-muted);
+
+    font-size: 14px;
+
+    line-height: 1.4;
+}
+
+
+.individual-context strong {
+    color: var(--text-muted);
+
+    font-weight: 700;
+}
+
+
+.individual-age {
+    margin: 6px 0 0;
+
+    color: var(--text-muted);
+
+    font-size: 14px;
+    font-weight: 700;
+}
+
+
+.site-form {
+    width: 100%;
+}
+
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+
     gap: 7px;
 
     margin-bottom: 20px;
