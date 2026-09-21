@@ -46,6 +46,10 @@ describe("element codes", () => {
     ["sacrum", "SAC"],
     ["mandible", "MND"],
     ["hyoid", "HYD"],
+    ["frontal", "CRA"],
+    ["occipital_3", "CRA"],
+    ["parietal_left_2", "CRA"],
+    ["inferior_nasal_concha_1", "CRA"],
     ["os_coxae_left", "PEL-L"],
     ["triquetrum_left", "TQ-L"],
     ["metacarpal_3_right", "MC3-R"],
@@ -68,7 +72,8 @@ describe("element codes", () => {
     // no client code
     "coccyx",
     "foot_proximal_phalanx_2_right",
-    "frontal",
+    "malleus_left",
+    "stapes_right",
     "not_a_real_bone",
     // must not resolve through Object.prototype
     "constructor",
@@ -78,9 +83,14 @@ describe("element codes", () => {
     expect(elementCodeForBone(svgId)).toBeNull();
   });
 
-  it("never uses the same client code for two SVG ids", () => {
-    const codes = [...ELEMENT_BY_SVG_ID.values()].map((element) => element.code);
-    expect(new Set(codes).size).toBe(codes.length);
+  it("only the cranium shares one client code between several SVG ids", () => {
+    const idsByCode = new Map();
+    for (const [svgId, { code }] of ELEMENT_BY_SVG_ID) {
+      idsByCode.set(code, [...(idsByCode.get(code) || []), svgId]);
+    }
+
+    const shared = [...idsByCode].filter(([, ids]) => ids.length > 1).map(([code]) => code);
+    expect(shared).toEqual(["CRA"]);
   });
 });
 
@@ -118,6 +128,36 @@ describe("countPresentElements", () => {
   it("does not count absent bones", () => {
     const { counts } = countPresentElements([[row("femur_right", ABSENT)]]);
     expect(counts["FEM-R"]).toBeUndefined();
+  });
+
+  it("treats the skull as one element however many of its bones are marked", () => {
+    const { counts } = countPresentElements([
+      [
+        row("frontal", PRESENT_COMPLETE),
+        row("occipital_3", PRESENT_FRAGMENTED),
+        row("parietal_right", PRESENT_COMPLETE),
+      ],
+    ]);
+
+    expect(counts["CRA"]).toMatchObject({ count: 1, complete: 1, fragmented: 0 });
+  });
+
+  it("counts a skull as present when only one of its bones is marked", () => {
+    const { counts } = countPresentElements([[row("lacrimal_left", PRESENT_FRAGMENTED)]]);
+    expect(counts["CRA"]).toMatchObject({ count: 1, complete: 0, fragmented: 1 });
+  });
+
+  it("keeps the mandible and hyoid separate from the skull", () => {
+    const { counts } = countPresentElements([[row("mandible", PRESENT_COMPLETE), row("hyoid", PRESENT_COMPLETE)]]);
+
+    expect(Object.keys(counts).sort()).toEqual(["HYD", "MND"]);
+  });
+
+  it("does not count the ear ossicles as part of the skull", () => {
+    const { counts, ignoredBones } = countPresentElements([[row("malleus_left", PRESENT_COMPLETE)]]);
+
+    expect(counts).toEqual({});
+    expect(ignoredBones).toEqual(["malleus_left"]);
   });
 
   it("counts an individual once per element even with several rows for it", () => {
@@ -255,6 +295,21 @@ describe("getSiteBoneStats", () => {
       ["TIB-L", 1],
     ]);
     expect(stats.counts["FEM-L"]).toBeUndefined();
+  });
+
+  it("counts the skull once per individual and can drive the MNI", async () => {
+    const { site, individuals } = await siteWithIndividuals("WES001", 3);
+    const [a, b, c] = individuals;
+
+    await mark(a, "frontal", PRESENT_COMPLETE);
+    await mark(a, "occipital_2", PRESENT_COMPLETE);
+    await mark(b, "parietal_1", PRESENT_FRAGMENTED);
+    await mark(c, "femur_right", PRESENT_COMPLETE);
+
+    const stats = await getSiteBoneStats(site.id);
+
+    expect(stats.mni).toBe(2);
+    expect(stats.topElements[0]).toMatchObject({ code: "CRA", label: "Cranium", count: 2 });
   });
 
   it("returns an MNI of 0 for a site with individuals but nothing recorded", async () => {

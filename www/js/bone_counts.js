@@ -82,6 +82,30 @@ const CUNEIFORMS = [
   ["lateral", 3],
 ];
 
+// The client counts the skull as ONE element (code CRA), but the cranium
+// SVG draws it as separate bones, several times over (lateral, inferior,
+// posterior and anterior views each have their own ids, e.g. `frontal`,
+// `frontal_right`, `frontal_left`). All of them map to CRA, and an
+// individual has a cranium if ANY of them is marked present. The mandible
+// and hyoid have their own client codes, and the ear ossicles are drawn
+// separately by the client with no code, so none of those are listed here.
+const CRANIAL_SVG_IDS = [
+  "frontal", "frontal_right", "frontal_left",
+  "parietal_1", "parietal_2", "parietal_right", "parietal_left",
+  "parietal_right_2", "parietal_left_2",
+  "occipital", "occipital_2", "occipital_3", "occipital_4",
+  "temporal_1", "temporal_2", "temporal_right", "temporal_left",
+  "temporal_right_2", "temporal_left_2", "temporal_right_3", "temporal_left_3",
+  "sphenoid_right", "sphenoid_left", "sphenoid_2",
+  "maxilla_1", "maxilla_2", "maxilla_right", "maxilla_left",
+  "zygomatic_1", "zygomatic_2", "zygoma_right", "zygoma_left",
+  "nasal_1", "nasal_2", "nasal_right", "nasal_left",
+  "lacrimal_1", "lacrimal_2", "lacrimal_right", "lacrimal_left",
+  "palatine_1", "palatine_2",
+  "vomer", "vomer_2",
+  "inferior_nasal_concha_1", "inferior_nasal_concha_2",
+];
+
 function buildElementTable() {
   const table = new Map();
   const add = (svgId, code, label) => table.set(svgId, Object.freeze({ code, label }));
@@ -90,6 +114,8 @@ function buildElementTable() {
   add("sacrum", "SAC", "Sacrum");
   add("mandible", "MND", "Mandible");
   add("hyoid", "HYD", "Hyoid");
+
+  for (const svgId of CRANIAL_SVG_IDS) add(svgId, "CRA", "Cranium");
   add("cervical_1", "VC1", "Atlas (C1)");
   add("cervical_2", "VC2", "Axis (C2)");
 
