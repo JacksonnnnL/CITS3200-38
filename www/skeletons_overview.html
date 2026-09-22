@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Skeleton Overview - OsteoMap</title>
-    <link rel="stylesheet" href="css/style.css?v=4">
+    <link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
@@ -79,12 +79,84 @@
 
         </main>
 
-        <!-- ====== BOTTOM ACTIONS - Expand button ====== -->
+        <!-- ====== BOTTOM ACTIONS - EXPORT BUTTON ====== -->
         <footer class="bottom-actions-expand">
-            <button id="expand-btn" class="button" type="button">
-                Expand
+            <button id="export-btn" class="button" type="button">
+                Export
             </button>
         </footer>
+
+        <!-- ====== EXPORT MODAL ====== -->
+        <div id="export-modal" class="export-modal" aria-hidden="true">
+
+            <div class="export-modal-content">
+
+                <h2>Export Individual</h2>
+
+                <p class="export-description">
+                    Select the files you would like to export.
+                </p>
+
+                <div class="export-options">
+
+                    <label class="export-option">
+                        <input
+                            type="checkbox"
+                            id="export-csv"
+                            value="csv"
+                        >
+                        <span>
+                            <strong>CSV Data</strong>
+                            <small>
+                                Bone preservation data for statistical analysis
+                            </small>
+                        </span>
+                    </label>
+
+                    <label class="export-option">
+                        <input
+                            type="checkbox"
+                            id="export-jpeg"
+                            value="jpeg"
+                        >
+                        <span>
+                            <strong>JPEG Image</strong>
+                            <small>
+                                Completed skeletal overview for printing
+                            </small>
+                        </span>
+                    </label>
+
+                </div>
+
+                <div class="export-actions">
+
+                    <button
+                        id="export-cancel-btn"
+                        class="button secondary-button"
+                        type="button"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        id="export-confirm-btn"
+                        class="button"
+                        type="button"
+                        disabled
+                    >
+                        Export
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script type="module" src="js/skeletons_overview.js?v=4"></script>
 
     </div>
 
