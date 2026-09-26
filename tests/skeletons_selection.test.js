@@ -1,18 +1,24 @@
-import { describe, expect, it, beforeAll } from "vitest";
+import { describe, expect, it, beforeAll, vi } from "vitest";
 import { JSDOM } from "jsdom";
+import { IDBFactory } from "fake-indexeddb";
 
+const { setZoneStateSpy } = vi.hoisted(() => ({
+    setZoneStateSpy: vi.fn(async () => ({}))
+}));
 
-// ============================================
-// Mock DOM before importing the module
-// ============================================
-//
-// skeletons_selection.js reads window.location and grabs several
-// DOM elements at import time. We set up a jsdom document with
-// those ids (and a URL with an accessionId so the top-level
-// redirect check doesn't fire) before importing.
+vi.mock("../www/js/data.js", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        setZoneState: setZoneStateSpy,
+        clearZoneState: vi.fn(async () => {})
+    };
+});
 
 let isDecorativeShape;
 let isGhostGroup;
+let allPresentButton;
+let container;
 
 beforeAll(async () => {
 
@@ -22,7 +28,10 @@ beforeAll(async () => {
             <span id="site-display"></span>
             <button id="back-to-overview-button"></button>
             <div id="segment-tabs"></div>
-            <div id="selected-segment-name"></div>
+            <div class="selected-row">
+                <div id="selected-segment-name"></div>
+                <button id="all-present-button" class="segment-tab" disabled></button>
+            </div>
             <div id="skeleton-select-container"></div>
             <div id="selected-info">
                 <span id="selected-zone-label"></span>
@@ -45,17 +54,16 @@ beforeAll(async () => {
     global.getComputedStyle = dom.window.getComputedStyle;
     global.alert = () => {};
     global.fetch = async () => ({ ok: false, status: 404 });
-    global.indexedDB = undefined; // not touched during tests
+    global.CSS = { escape: (s) => s };
+    globalThis.indexedDB = new IDBFactory();
 
     const mod = await import("../www/js/skeletons_selection.js");
     isDecorativeShape = mod.isDecorativeShape;
     isGhostGroup = mod.isGhostGroup;
+
+    allPresentButton = document.getElementById("all-present-button");
+    container = document.getElementById("skeleton-select-container");
 });
-
-
-// ============================================
-// isDecorativeShape
-// ============================================
 
 describe("isDecorativeShape (selection)", () => {
 
@@ -92,11 +100,6 @@ describe("isDecorativeShape (selection)", () => {
 
 });
 
-
-// ============================================
-// isGhostGroup
-// ============================================
-
 describe("isGhostGroup (selection)", () => {
 
     it("returns true when the group has opacity < 1 as an attribute", () => {
@@ -126,6 +129,73 @@ describe("isGhostGroup (selection)", () => {
         const doc = dom.window.document;
 
         expect(isGhostGroup(doc.getElementById("g1"))).toBe(false);
+    });
+
+});
+
+describe("All Present button", () => {
+
+    const GREEN = "#2e7d32";
+
+    function setSegmentSvg(boneIds) {
+        const groups = boneIds.map(id => `
+            <g id="${id}">
+                <path d="M0 0 L10 0 L10 10 Z" />
+            </g>
+        `).join("");
+
+        container.innerHTML =
+            `<svg xmlns="http://www.w3.org/2000/svg">${groups}</svg>`;
+    }
+
+    it("starts disabled before any segment loads", () => {
+        expect(allPresentButton.hasAttribute("disabled")).toBe(true);
+    });
+
+    it("turns every bone in the segment green", async () => {
+        setSegmentSvg(["bone_alpha", "bone_beta", "bone_gamma"]);
+        allPresentButton.disabled = false;
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        const alpha = container.querySelector("#bone_alpha path");
+        const beta  = container.querySelector("#bone_beta path");
+        const gamma = container.querySelector("#bone_gamma path");
+
+        expect(alpha.style.fill).toBe(GREEN);
+        expect(beta.style.fill).toBe(GREEN);
+        expect(gamma.style.fill).toBe(GREEN);
+    });
+
+    it("skips ghost groups (opacity < 1)", async () => {
+        container.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg">
+                <g id="bone_visible"><path d="M0 0 L1 0 L1 1 Z" /></g>
+                <g id="bone_ghost" opacity="0.3"><path d="M0 0 L1 0 L1 1 Z" /></g>
+            </svg>
+        `;
+        allPresentButton.disabled = false;
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        const visible = container.querySelector("#bone_visible path");
+        const ghost   = container.querySelector("#bone_ghost path");
+
+        expect(visible.style.fill).toBe(GREEN);
+        expect(ghost.style.fill).not.toBe(GREEN);
+    });
+
+    it("re-enables itself after a successful run", async () => {
+        setSegmentSvg(["bone_alpha"]);
+        allPresentButton.disabled = false;
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(allPresentButton.hasAttribute("disabled")).toBe(false);
     });
 
 });

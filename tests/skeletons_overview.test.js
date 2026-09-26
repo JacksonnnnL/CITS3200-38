@@ -1,16 +1,6 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import { JSDOM } from "jsdom";
 
-
-// ============================================
-// Mock DOM before importing the module
-// ============================================
-//
-// skeletons_overview.js reads window.location and grabs several
-// DOM elements at import time. We set up a jsdom document with
-// those ids (and a URL with an accessionId so the top-level
-// redirect check doesn't fire) before importing.
-
 let isDecorativeShape;
 let isGhostGroup;
 
@@ -34,17 +24,12 @@ beforeAll(async () => {
     global.getComputedStyle = dom.window.getComputedStyle;
     global.alert = () => {};
     global.fetch = async () => ({ ok: false, status: 404 });
-    global.indexedDB = undefined; // not touched during tests
+    global.indexedDB = undefined;
 
     const mod = await import("../www/js/skeletons_overview.js");
     isDecorativeShape = mod.isDecorativeShape;
     isGhostGroup = mod.isGhostGroup;
 });
-
-
-// ============================================
-// isDecorativeShape
-// ============================================
 
 describe("isDecorativeShape (overview)", () => {
 
@@ -80,11 +65,6 @@ describe("isDecorativeShape (overview)", () => {
     });
 
 });
-
-
-// ============================================
-// isGhostGroup
-// ============================================
 
 describe("isGhostGroup (overview)", () => {
 
