@@ -142,3 +142,40 @@ export async function createIndividualCsv(accessionId) {
 
     return rowsToCsv(rows);
 }
+
+// ========================================
+// Download CSV File
+// ========================================
+
+export async function downloadIndividualCsv(
+    accessionId,
+    fileName = 'osteomap-export.csv'
+) {
+
+    const csv =
+        await createIndividualCsv(accessionId);
+
+    const blob = new Blob(
+        [csv],
+        {
+            type: 'text/csv;charset=utf-8;'
+        }
+    );
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const link =
+        document.createElement('a');
+
+    link.href = url;
+    link.download = fileName;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+}

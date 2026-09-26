@@ -12,6 +12,10 @@ import {
     STATE_COLORS
 } from './skeleton_config.js';
 
+import {
+    downloadIndividualCsv
+} from './skeletonExport.js';
+
 // ========================================
 // Segment Configuration
 // ========================================
@@ -84,7 +88,6 @@ let currentAccession = null;
 let currentSite = null;
 let ageCategory = null;
 let boneStates = {};
-let exportMode = false;
 
 // ========================================
 // Load Data
@@ -467,17 +470,6 @@ function applyBoneColors(scope) {
 }
 
 // ========================================
-// Expand Button
-// ========================================
-
-// Inert placeholder — navigation is now via segment taps.
-document.getElementById('expand-btn')?.addEventListener('click', () => {
-    if (!exportMode) {
-        return;
-    }
-});
-
-// ========================================
 // Notes Auto-Save
 // ========================================
 
@@ -495,4 +487,144 @@ notesInput.addEventListener('change', async function() {
 // Start
 // ========================================
 
-document.addEventListener('DOMContentLoaded', loadData);
+// ========================================
+// Export Modal
+// ========================================
+
+const exportButton =
+    document.getElementById('export-btn');
+
+const exportModal =
+    document.getElementById('export-modal');
+
+const exportCancelButton =
+    document.getElementById('export-cancel-btn');
+
+const exportConfirmButton =
+    document.getElementById('export-confirm-btn');
+
+const exportCsvCheckbox =
+    document.getElementById('export-csv');
+
+const exportJpegCheckbox =
+    document.getElementById('export-jpeg');
+
+// ========================================
+// Closing export modal
+// ========================================
+
+function closeExportModal() {
+
+    exportModal.classList.remove('open');
+
+    exportModal.setAttribute(
+        'aria-hidden',
+        'true'
+    );
+}
+
+// ========================================
+// Opening + Closing the export
+// ========================================
+
+exportButton?.addEventListener('click', () => {
+
+    exportModal.classList.add('open');
+
+    exportModal.setAttribute(
+        'aria-hidden',
+        'false'
+    );
+});
+
+// ========================================
+// Export handler
+// ========================================
+
+function safeFileName(value) {
+
+    return String(value)
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+
+// ========================================
+// Enable and disable export
+// ========================================
+
+exportCancelButton?.addEventListener(
+    'click',
+    closeExportModal
+);
+
+
+function updateExportButton() {
+
+    exportConfirmButton.disabled =
+        !exportCsvCheckbox.checked &&
+        !exportJpegCheckbox.checked;
+}
+
+
+exportCsvCheckbox?.addEventListener(
+    'change',
+    updateExportButton
+);
+
+
+exportJpegCheckbox?.addEventListener(
+    'change',
+    updateExportButton
+);
+
+
+// ========================================
+// Export clicking interaction
+// ========================================
+
+exportConfirmButton?.addEventListener(
+    'click',
+    async () => {
+
+        const exportCsv =
+            exportCsvCheckbox.checked;
+
+        const exportJpeg =
+            exportJpegCheckbox.checked;
+
+
+        if (exportCsv) {
+
+            const fileName =
+                `${safeFileName(currentSite.code)}_` +
+                `${safeFileName(currentAccession.accessionNumber)}_data.csv`;
+
+            await downloadIndividualCsv(
+                accessionId,
+                fileName
+            );
+        }
+
+
+        if (exportJpeg) {
+
+            console.log(
+                'JPEG export not implemented yet.'
+            );
+        }
+
+
+        closeExportModal();
+    }
+);
+
+
+// ========================================
+// Start
+// ========================================
+
+document.addEventListener(
+    'DOMContentLoaded',
+    loadData
+);
