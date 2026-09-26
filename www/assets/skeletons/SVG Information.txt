@@ -1,0 +1,96 @@
+Client's requirement for SVG
+1. The ribs and vertebrae of the child can be kept as a table. It would be good if we could tick or colour the box to indicate presence. 
+	Hannah: I assigned ID for the box, so it is able to code to change the colour like bone
+
+
+2. Add perhaps a sub-number for each bone part (e.g. Fem-L1, Fem-L2...)for unfused bones. (lower priority than the other things we spoke about in the meeting.)
+Hannah:
+Unfused bones of Child:
+	-HYD
+	-SCA: left, right
+	-HUM: left, right
+	-ULN: left, right
+	-RAD: left, right
+	-PEL: left, right
+	-FEM: left, right
+	-SAC
+	-TIB: left, right
+	-FIB: left, right
+ Unfused bones of Adolescent:same as child except: PEL, SAC
+
+
+3. The ribs – as in the adult, only the first rib is exported for bone count, and only the first two vertebra are exported as bone counts, the rest are just visually recorded as present/absent. The bones without codes don’t need to be included in the MNI count
+
+Hannah: I listed bones's ID for MNI, and diifferentiate hands and feet PP
+MNI:
+CRA, MND, HYD
+VC1, VC2
+CLA_R, CLA_L, SCA_R, SCA_L ,STN
+RIB_R1, RIB_L1
+HUM_R, HUM_L, RAD_R, RAD_L, ULN_R, ULN_L
+FEM_R, FEM_L, PAT_R, PAT_L, TIB_R, TIB_L, FIB_R, FIB_L
+PEL_R, PEL_L, SAC
+SC_R, LU_R, TQ_R, PI_R, TZ_R, TR_R, CA_R, HA_R
+MC1_R, MC2_R, MC3_R, MC4_R, MC5_R
+SC_L, LU_L, TQ_L, PI_L, TZ_L, TR_L, CA_L, HA_L
+MC1_L, MC2_L, MC3_L, MC4_L, MC5_L
+CAL_R, TAL_R, NAV_R, CUB_R, CUN_R1, CUN_R2, CUN_R3
+MT1_R, MT2_R, MT3_R, MT4_R, MT5_R
+PPH1_R, DPH1_R
+CAL_L, TAL_L, NAV_L, CUB_L, CUN_L1, CUN_L2, CUN_L3
+MT1_L, MT2_L, MT3_L, MT4_L, MT5_L
+PPF1_L, DPF1_L
+Total: 83
+
+4. With the skull yes- if each bone  can have their own code that would be useful – I wasn’t sure you had achieved that level of specificity.
+Hannah: These are ID I assigned for the skull's bones
+Temporal ->TEM
+Frontal -> CRA
+Parietal -> PAR
+Zygomatic -> ZYG
+Maxilla -> MAX
+Vomer -> VOM
+Incus -> INC
+Stapes -> STA
+Malleus -> MAL
+Sphenoid -> SPH
+Palatine -> PAL
+Occipital -> OCC
+nasal -> NAS
+lacrimal -> LAC
+inferior_nasal_concha -> INCO
+Coccyx -> COC
+
+5. Link bones in cranium
+CRA:CRA_lat_l, CRA_lat_r, CRA_ant
+
+PAR_L:PAR_L_lat_l, PAR_L_post, PAR_L_ant
+
+PAR_R:PAR_R_lat_r, PAR_R_post, PAR_R_ant
+
+TEM_L:TEM_L_lat_l, TEM_L_ant, TEM_L_inf, TEM_L_post
+
+TEM_R:TEM_R_lat_r, TEM_R_ant, TEM_R_inf, TEM_R_post
+
+NAS_L:NAS_L_lat_l, NAS_L_ant
+
+NAS_R:NAS_R_lat_r, NAS_R_ant
+
+MAX_L:MAX_L_lat_l, MAX_L_inf, MAX_L_ant
+
+MAX_R:MAX_R_lat_r, MAX_R_inf, MAX_R_ant
+
+ZYG_L:ZYG_L_lat_l, ZYG_L_ant, ZYG_L_inf
+
+ZYG_R:ZYG_R_lat_r, ZYG_R_ant, ZYG_R_inf
+
+LAC_L:LAC_L_lat_l, LAC_L_ant
+
+LAC_R:LAC_R_lat_r, LAC_R_ant
+
+OCC:OCC_lat_l, OCC_lat_r, OCC_inf, OCC_post
+
+SPH:SPH_L_lat_l, SPH_R_lat_r, SPH_inf
+
+
+
