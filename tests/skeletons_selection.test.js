@@ -167,6 +167,20 @@ describe("All Present button", () => {
         expect(alpha.style.fill).toBe(GREEN);
         expect(beta.style.fill).toBe(GREEN);
         expect(gamma.style.fill).toBe(GREEN);
+
+        // --- Reviewer feedback: verify persistence, not just colouring ---
+
+        // Call-count check: all three bones must be saved.
+        expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
+
+        // Argument check: at least one bone, exact shape.
+        expect(setZoneStateSpy).toHaveBeenCalledWith({
+            accessionId: "test-id",
+            bone: "bone_alpha",
+            side: "",
+            zone: "bone_alpha",
+            state: "present-complete"
+        });
     });
 
     it("skips ghost groups (opacity < 1)", async () => {
