@@ -1406,7 +1406,8 @@ body {
 #legend .dot.green { background: #2e7d32; }
 #legend .dot.orange { background: #ed6c02; }
 #legend .dot.grey { background: #9e9e9e; }
-#legend .dot.white { background: #ffffff; }
+#legend .dot.white { background: transparent;
+                     border: 1px solid #1a1a1a; }
 
 #skeleton-select-container[data-segment="cranium"] svg {
     min-width: 1200px;
