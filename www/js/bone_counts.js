@@ -28,16 +28,13 @@ import {
   getZoneStatesByAccession,
 } from "./data.js";
 
-// States that count as "Present". The client asked for the highest
-// repeating element "marked as present" and the wording is ambiguous
-// about whether a fragmented element counts. An identifiable fragment
-// still evidences an individual, so both count by default. To count
-// only complete elements, pass { presentStates: [PRESENT_COMPLETE] }
-// or change this constant.
-export const PRESENT_STATES = Object.freeze([
-  PRESERVATION_STATES.PRESENT_COMPLETE,
-  PRESERVATION_STATES.PRESENT_FRAGMENTED,
-]);
+// States that count towards the MNI. Confirmed with the client
+// (Ambika, 27 Sep): Fragmented means less than 50% of the element is
+// present, so it is recorded for inventory purposes only and excluded
+// from MNI — only Present (Complete, >=50% present) counts. Kept as a
+// list rather than a single value in case that ever needs to change
+// again; pass a different { presentStates: [...] } to override per call.
+export const PRESENT_STATES = Object.freeze([PRESERVATION_STATES.PRESENT_COMPLETE]);
 
 export const TOP_ELEMENT_LIMIT = 5;
 
