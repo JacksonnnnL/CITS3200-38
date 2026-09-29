@@ -67,7 +67,7 @@ export const STATE_COLORS = {
     [PRESERVATION_STATES.PRESENT_COMPLETE]:   '#2e7d32',  // green
     [PRESERVATION_STATES.PRESENT_FRAGMENTED]: '#ed6c02',  // orange
     [PRESERVATION_STATES.ABSENT]:             '#9e9e9e',  // grey
-    [UNMARKED]:                                '#ffffff'  // white
+    [UNMARKED]:                               'transparent'  // transparent
 };
 
 export const STATE_LABELS = {

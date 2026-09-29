@@ -88,7 +88,7 @@ describe("state maps", () => {
         expect(STATE_COLORS[PRESERVATION_STATES.PRESENT_COMPLETE]).toBe("#2e7d32");
         expect(STATE_COLORS[PRESERVATION_STATES.PRESENT_FRAGMENTED]).toBe("#ed6c02");
         expect(STATE_COLORS[PRESERVATION_STATES.ABSENT]).toBe("#9e9e9e");
-        expect(STATE_COLORS[UNMARKED]).toBe("#ffffff");
+        expect(STATE_COLORS[UNMARKED]).toBe("transparent");
     });
 });
 
