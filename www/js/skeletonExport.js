@@ -179,3 +179,107 @@ export async function downloadIndividualCsv(
 
     URL.revokeObjectURL(url);
 }
+// ========================================
+// Download Skeleton JPEG
+// ========================================
+
+export async function downloadSkeletonJpeg(
+    svgElement,
+    fileName = 'osteomap-skeleton.jpg'
+) {
+
+    if (!svgElement) {
+        throw new Error('No SVG element provided for JPEG export.');
+    }
+
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svgElement);
+
+    const svgBlob = new Blob(
+        [svgString],
+        { type: 'image/svg+xml;charset=utf-8' }
+    );
+
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    const image = new Image();
+
+    const imageLoaded = new Promise((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(
+            new Error('Failed to load SVG into image.')
+        );
+    });
+
+    image.src = svgUrl;
+    await imageLoaded;
+
+    // A4 portrait at 300 DPI
+    const canvas = document.createElement('canvas');
+    canvas.width = 2480;
+    canvas.height = 3508;
+
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+        URL.revokeObjectURL(svgUrl);
+        throw new Error('Failed to get canvas context.');
+    }
+
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Margins
+    const margin = 180;
+    const maxWidth = canvas.width - margin * 2;
+    const maxHeight = canvas.height - margin * 2;
+
+    // Keep aspect ratio
+    const scale = Math.min(
+        maxWidth / image.width,
+        maxHeight / image.height
+    );
+
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+
+    const x = (canvas.width - drawWidth) / 2;
+    const y = (canvas.height - drawHeight) / 2;
+
+    ctx.drawImage(
+        image,
+        x,
+        y,
+        drawWidth,
+        drawHeight
+    );
+
+    URL.revokeObjectURL(svgUrl);
+
+    const jpegBlob = await new Promise((resolve, reject) => {
+        canvas.toBlob(
+            blob => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('Failed to create JPEG blob.'));
+                }
+            },
+            'image/jpeg',
+            0.95
+        );
+    });
+
+    const jpegUrl = URL.createObjectURL(jpegBlob);
+
+    const link = document.createElement('a');
+    link.href = jpegUrl;
+    link.download = fileName;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(jpegUrl);
+}

@@ -13,7 +13,8 @@ import {
 } from './skeleton_config.js';
 
 import {
-    downloadIndividualCsv
+    downloadIndividualCsv,
+    downloadSkeletonJpeg
 } from './skeletonExport.js';
 
 // ========================================
@@ -609,8 +610,16 @@ exportConfirmButton?.addEventListener(
 
         if (exportJpeg) {
 
-            console.log(
-                'JPEG export not implemented yet.'
+            const svgElement =
+                document.querySelector('#skeleton-board svg');
+
+            const fileName =
+                `${safeFileName(currentSite.code)}_` +
+                `${safeFileName(currentAccession.accessionNumber)}_skeleton.jpg`;
+
+            await downloadSkeletonJpeg(
+                svgElement,
+                fileName
             );
         }
 
