@@ -16,10 +16,6 @@ import {
     UNMARKED
 } from './skeleton_config.js';
 
-// ========================================
-// URL Params
-// ========================================
-
 const urlParams = new URLSearchParams(window.location.search);
 const accessionId = urlParams.get('accessionId');
 const segmentParam = urlParams.get('segment');
@@ -29,12 +25,6 @@ if (!accessionId) {
     window.location.href = 'index.html';
 }
 
-// ========================================
-// Segment Configuration
-// ========================================
-
-// `file` is just the file name. The folder is decided at runtime
-// by folderForAge() based on the individual's age category.
 const SEGMENTS = [
     { id: 'cranium',     label: 'Cranium',      file: 'cranium.svg',          status: 'have' },
     { id: 'axial',       label: 'Axial',        file: 'axial_skeleton.svg',   status: 'have' },
@@ -45,10 +35,6 @@ const SEGMENTS = [
     { id: 'left-lower',  label: 'L Lower Limb', file: 'left_lower_limb.svg',  status: 'have' }
 ];
 
-// ========================================
-// State
-// ========================================
-
 let currentAccession = null;
 let currentSite = null;
 let selectedBone = null;
@@ -58,10 +44,7 @@ let currentFolder = null;
 let savedStates = [];
 
 const HIGHLIGHT = '#007f7a';
-
-// ========================================
-// Shape Helpers
-// ========================================
+const PRESENT_STATE = 'present-complete';
 
 export function isGhostGroup(group) {
     const attr = group.getAttribute('opacity');
@@ -76,10 +59,6 @@ export function isDecorativeShape(shape) {
     return false;
 }
 
-// ========================================
-// DOM References
-// ========================================
-
 const container = document.getElementById('skeleton-select-container');
 const detailsBox = document.getElementById('details-box');
 const detailBoneName = document.getElementById('detail-bone-name');
@@ -89,10 +68,7 @@ const selectedZoneLabel = document.getElementById('selected-zone-label');
 const selectedSegmentName = document.getElementById('selected-segment-name');
 const segmentTabs = document.getElementById('segment-tabs');
 const detailsCloseButton = document.getElementById('details-close');
-
-// ========================================
-// Close Details Box
-// ========================================
+const allPresentButton = document.getElementById('all-present-button');
 
 function closeDetailsBox() {
     detailsBox.style.display = 'none';
@@ -109,10 +85,6 @@ function closeDetailsBox() {
             });
     });
 }
-
-// ========================================
-// Load Data
-// ========================================
 
 async function loadData() {
     try {
@@ -171,10 +143,6 @@ async function loadData() {
     }
 }
 
-// ========================================
-// Render Segment Tabs
-// ========================================
-
 function renderSegmentTabs() {
     segmentTabs.innerHTML = '';
 
@@ -202,18 +170,17 @@ function renderSegmentTabs() {
     });
 }
 
-// ========================================
-// Load Segment SVG
-// ========================================
-
 async function loadSegment(segmentId) {
     const segment = SEGMENTS.find(s => s.id === segmentId);
     if (!segment || segment.status === 'missing') return;
     if (!currentFolder) return;
 
+    allPresentButton.disabled = true;
+
     currentSegment = segmentId;
 
     document.querySelectorAll('.segment-tab').forEach(tab => {
+        if (tab.id === 'all-present-button') return;
         tab.classList.toggle('active', tab.dataset.segment === segmentId);
     });
 
@@ -230,8 +197,6 @@ async function loadSegment(segmentId) {
 
         container.innerHTML = svgText;
 
-        // Tag the container with the current segment id so CSS can
-        // target specific segments (e.g. the cranium's scroller).
         container.dataset.segment = segmentId;
 
         applyColorsAndMakeClickable();
@@ -245,15 +210,11 @@ async function loadSegment(segmentId) {
                 <span style="font-size:14px;">${error.message}</span>
             </div>
         `;
+
+        allPresentButton.disabled = true;
     }
 }
 
-// ========================================
-// Apply Colors & Make Bones Clickable
-// ========================================
-
-// Key on <g id> groups, not path ids — path ids inside the SVGs
-// are non-unique ("Vector", "Vector_2", ...), group ids are unique.
 function applyColorsAndMakeClickable() {
     const allGroups = container.querySelectorAll('g[id]');
     const boneElements = [];
@@ -317,11 +278,9 @@ function applyColorsAndMakeClickable() {
             });
         });
     });
-}
 
-// ========================================
-// Handle Bone Click
-// ========================================
+    allPresentButton.disabled = (boneElements.length === 0);
+}
 
 function handleBoneClick(element) {
     const boneId = element.id.trim();
@@ -368,18 +327,10 @@ function handleBoneClick(element) {
     selectedZoneLabel.textContent = boneId;
 }
 
-// ========================================
-// Close Button
-// ========================================
-
 detailsCloseButton.addEventListener('click', (e) => {
     e.stopPropagation();
     closeDetailsBox();
 });
-
-// ========================================
-// State Buttons (Present, Fragmented, Absent)
-// ========================================
 
 document.querySelectorAll('#details-box .state-btn').forEach(btn => {
     btn.addEventListener('click', async function() {
@@ -398,7 +349,6 @@ document.querySelectorAll('#details-box .state-btn').forEach(btn => {
 
         const currentState = boneStates[selectedBone];
 
-        // Toggle off if the same state is tapped again.
         let finalState = (currentState === newState) ? null : newState;
 
         const fillColor = STATE_COLORS[finalState || UNMARKED];
@@ -423,9 +373,6 @@ document.querySelectorAll('#details-box .state-btn').forEach(btn => {
                     zone: selectedBone
                 });
             } else {
-                // TODO (future): when zonation lands, `zone` must come
-                // from the clicked SVG element and `boneStates` must be
-                // keyed by bone+side+zone.
                 await setZoneState({
                     accessionId: accessionId,
                     bone: selectedBone,
@@ -441,9 +388,59 @@ document.querySelectorAll('#details-box .state-btn').forEach(btn => {
     });
 });
 
-// ========================================
-// Start
-// ========================================
+allPresentButton.addEventListener('click', async () => {
+    const boneElements = [];
+
+    container.querySelectorAll('g[id]').forEach(group => {
+        const id = group.id.trim();
+
+        if (isNonBoneId(id)) return;
+        if (isGhostGroup(group)) return;
+        if (hasRealBoneSubgroups(group)) return;
+
+        boneElements.push(group);
+    });
+
+    if (boneElements.length === 0) {
+        alert('No bones to mark in this segment.');
+        return;
+    }
+
+    allPresentButton.disabled = true;
+
+    try {
+        for (const group of boneElements) {
+            const boneId = group.id.trim();
+
+            group
+                .querySelectorAll('path, polygon, circle, ellipse, rect')
+                .forEach(shape => {
+                    if (isDecorativeShape(shape)) return;
+                    shape.style.fill = STATE_COLORS[PRESENT_STATE];
+                });
+
+            boneStates[boneId] = PRESENT_STATE;
+
+            await setZoneState({
+                accessionId: accessionId,
+                bone: boneId,
+                side: '',
+                zone: boneId,
+                state: PRESENT_STATE
+            });
+        }
+
+        if (selectedBone && boneStates[selectedBone] === PRESENT_STATE) {
+            detailStatusText.textContent = STATE_LABELS[PRESENT_STATE];
+            detailStatusDot.style.background = STATE_DOTS[PRESENT_STATE];
+        }
+    } catch (error) {
+        console.error('Failed to mark all bones present:', error);
+        alert('Failed to mark all bones present. Please try again.');
+    } finally {
+        allPresentButton.disabled = false;
+    }
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     loadData();
