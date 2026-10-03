@@ -11,7 +11,7 @@
 
     <title>Site - OsteoMap</title>
 
-    <link rel="stylesheet" href="css/style.css?v=4">
+    <link rel="stylesheet" href="css/style.css?v=5">
     <link rel="stylesheet" href="css/siteStats.css?v=1">
 </head>
 
@@ -69,29 +69,6 @@
                     <h2>
                         Individuals
                     </h2>
-
-                    <div class="individual-sort">
-
-                        <svg
-                            class="sort-icon"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="M4 5h16l-6 7v5l-4 2v-7L4 5z"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-
-                        <span>
-                            Sorted: Date/Grave
-                        </span>
-
-                    </div>
 
                 </div>
 
@@ -198,10 +175,64 @@
 
     </div>
 
+    <div
+        id="edit-context-modal"
+        class="modal-overlay"
+    >
+
+        <div
+            class="modal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-context-title"
+        >
+
+            <h2 id="edit-context-title">
+                Edit Context / Grave
+            </h2>
+
+            <div class="form-group">
+
+                <label for="edit-context-input">
+                    Context / Grave
+                </label>
+
+                <input
+                    id="edit-context-input"
+                    type="text"
+                    placeholder="Enter context or grave"
+                    autocomplete="off"
+                >
+
+            </div>
+
+            <div class="modal-actions">
+
+                <button
+                    id="cancel-context-edit-button"
+                    class="modal-button modal-button-cancel"
+                    type="button"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    id="save-context-edit-button"
+                    class="modal-button modal-button-save"
+                    type="button"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
 
     <script
         type="module"
-        src="js/site.js"
+        src="js/site.js?v=2"
     ></script>
 
     <script
