@@ -11,7 +11,7 @@
 
     <title>Site - OsteoMap</title>
 
-    <link rel="stylesheet" href="css/style.css?v=5">
+    <link rel="stylesheet" href="css/style.css?v=9">
     <link rel="stylesheet" href="css/siteStats.css?v=1">
 </head>
 
@@ -48,12 +48,55 @@
                     SITE-12345
                 </h1>
 
-                <p
-                    id="site-location-heading"
-                    class="site-header-location"
+                <div
+                    id="site-description-display"
+                    class="site-description-display"
                 >
-                    LOCATION
-                </p>
+                    <p
+                        id="site-location-heading"
+                        class="site-header-location"
+                    >
+                        LOCATION
+                    </p>
+
+                    <button
+                        id="edit-site-description-button"
+                        class="site-description-edit-button"
+                        type="button"
+                    >
+                        Edit
+                    </button>
+                </div>
+
+                <div
+                    id="site-description-editor"
+                    class="site-description-editor"
+                    hidden
+                >
+                    <textarea
+                        id="site-description-input"
+                        aria-label="Site Description"
+                        placeholder="Enter site description"
+                    ></textarea>
+
+                    <div class="site-description-actions">
+                        <button
+                            id="cancel-site-description-button"
+                            class="site-description-action site-description-cancel"
+                            type="button"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            id="save-site-description-button"
+                            class="site-description-action site-description-save"
+                            type="button"
+                        >
+                            Save
+                        </button>
+                    </div>
+                </div>
 
             </div>
 
@@ -69,6 +112,43 @@
                     <h2>
                         Individuals
                     </h2>
+
+                    <div class="age-filter">
+
+                        <button
+                            id="age-filter-button"
+                            class="age-filter-button"
+                            type="button"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                        >
+                            Age
+                            <span aria-hidden="true">▾</span>
+                        </button>
+
+                        <div
+                            id="age-filter-menu"
+                            class="age-filter-menu"
+                            role="menu"
+                        >
+                            <button type="button" role="menuitem" data-age="infant">
+                                Infant
+                            </button>
+
+                            <button type="button" role="menuitem" data-age="child">
+                                Child
+                            </button>
+
+                            <button type="button" role="menuitem" data-age="adolescent">
+                                Adolescent
+                            </button>
+
+                            <button type="button" role="menuitem" data-age="adult">
+                                Adult
+                            </button>
+                        </div>
+
+                    </div>
 
                 </div>
 
@@ -232,7 +312,7 @@
 
     <script
         type="module"
-        src="js/site.js?v=2"
+        src="js/site.js?v=4"
     ></script>
 
     <script

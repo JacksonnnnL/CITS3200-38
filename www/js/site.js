@@ -3,6 +3,7 @@ import {
     getAccessionsBySite,
     getContextsBySite,
     createContext,
+    updateSite,
     updateAccession,
     deleteAccession
 } from "./data.js";
@@ -12,6 +13,43 @@ let deleteMode = false;
 let selectedIndividualId = null;
 let editingIndividualId = null;
 let currentIndividuals = [];
+let selectedDevelopmentalAge = null;
+let currentSiteDescription = "";
+
+const siteDescriptionDisplay =
+    document.getElementById(
+        "site-description-display"
+    );
+
+const siteDescriptionHeading =
+    document.getElementById(
+        "site-location-heading"
+    );
+
+const editSiteDescriptionButton =
+    document.getElementById(
+        "edit-site-description-button"
+    );
+
+const siteDescriptionEditor =
+    document.getElementById(
+        "site-description-editor"
+    );
+
+const siteDescriptionInput =
+    document.getElementById(
+        "site-description-input"
+    );
+
+const cancelSiteDescriptionButton =
+    document.getElementById(
+        "cancel-site-description-button"
+    );
+
+const saveSiteDescriptionButton =
+    document.getElementById(
+        "save-site-description-button"
+    );
 
 const editContextModal =
     document.getElementById(
@@ -31,6 +69,16 @@ const cancelContextEditButton =
 const saveContextEditButton =
     document.getElementById(
         "save-context-edit-button"
+    );
+
+const ageFilterButton =
+    document.getElementById(
+        "age-filter-button"
+    );
+
+const ageFilterMenu =
+    document.getElementById(
+        "age-filter-menu"
     );
 
 const deleteIndividualButton =
@@ -98,11 +146,123 @@ document
         site.code;
 
 
-document
-    .getElementById("site-location-heading")
-    .textContent =
-        site.description ||
+currentSiteDescription =
+    site.description ||
+    "";
+
+
+function renderSiteDescription() {
+
+    siteDescriptionHeading.textContent =
+        currentSiteDescription ||
         "No description";
+
+}
+
+
+function closeSiteDescriptionEditor() {
+
+    siteDescriptionInput.value =
+        currentSiteDescription;
+
+    siteDescriptionEditor.hidden = true;
+    siteDescriptionDisplay.hidden = false;
+
+}
+
+
+function openSiteDescriptionEditor() {
+
+    siteDescriptionInput.value =
+        currentSiteDescription;
+
+    siteDescriptionDisplay.hidden = true;
+    siteDescriptionEditor.hidden = false;
+
+    siteDescriptionInput.focus();
+
+}
+
+
+renderSiteDescription();
+
+
+editSiteDescriptionButton.addEventListener(
+    "click",
+    openSiteDescriptionEditor
+);
+
+
+cancelSiteDescriptionButton.addEventListener(
+    "click",
+    closeSiteDescriptionEditor
+);
+
+
+saveSiteDescriptionButton.addEventListener(
+    "click",
+    async () => {
+
+        const description =
+            siteDescriptionInput.value.trim();
+
+
+        saveSiteDescriptionButton.disabled = true;
+
+
+        try {
+
+            const updatedSite =
+                await updateSite(
+                    siteId,
+                    { description }
+                );
+
+
+            if (!updatedSite) {
+                throw new Error(
+                    "Site could not be updated"
+                );
+            }
+
+
+            currentSiteDescription =
+                updatedSite.description ||
+                "";
+
+
+            renderSiteDescription();
+            closeSiteDescriptionEditor();
+
+        }
+        catch (error) {
+
+            console.error(
+                "Failed to update site description:",
+                error
+            );
+
+        }
+        finally {
+
+            saveSiteDescriptionButton.disabled = false;
+
+        }
+
+    }
+);
+
+
+siteDescriptionInput.addEventListener(
+    "keydown",
+    (event) => {
+
+        if (event.key === "Escape") {
+            closeSiteDescriptionEditor();
+        }
+
+    }
+);
 
 
 document
@@ -146,7 +306,10 @@ const contextMap =
     );
 
 
-function renderIndividuals(individuals) {
+function renderIndividuals(
+    individuals,
+    emptyMessage = "No individuals created yet."
+) {
 
     const individualList =
         document.getElementById(
@@ -160,7 +323,7 @@ function renderIndividuals(individuals) {
     if (individuals.length === 0) {
 
         individualList.innerHTML = `
-            <p>No individuals created yet.</p>
+            <p>${emptyMessage}</p>
         `;
 
         return;
@@ -179,6 +342,13 @@ function renderIndividuals(individuals) {
             article.classList.add(
                 "individual-card"
             );
+
+
+            if (deleteMode) {
+                article.classList.add(
+                    "delete-target"
+                );
+            }
 
 
             article.dataset.individualId =
@@ -261,6 +431,188 @@ const accessionCollator =
     );
 
 
+function closeAgeFilterMenu() {
+
+    ageFilterMenu.classList.remove(
+        "open"
+    );
+
+    ageFilterButton.setAttribute(
+        "aria-expanded",
+        "false"
+    );
+
+}
+
+
+function updateAgeFilterButton() {
+
+    if (!selectedDevelopmentalAge) {
+
+        ageFilterButton.classList.remove(
+            "active"
+        );
+
+        ageFilterButton.innerHTML = `
+            Age
+            <span aria-hidden="true">▾</span>
+        `;
+
+        return;
+    }
+
+
+    const label =
+        selectedDevelopmentalAge
+            .charAt(0)
+            .toUpperCase()
+        +
+        selectedDevelopmentalAge
+            .slice(1);
+
+
+    ageFilterButton.classList.add(
+        "active"
+    );
+
+    ageFilterButton.innerHTML = `
+        ${label}
+        <span aria-hidden="true">×</span>
+    `;
+
+}
+
+
+function applyDevelopmentalAgeFilter() {
+
+    if (!selectedDevelopmentalAge) {
+
+        renderIndividuals(
+            currentIndividuals
+        );
+
+        return;
+    }
+
+
+    const filteredIndividuals =
+        currentIndividuals.filter(
+            individual =>
+                individual.ageCategory ===
+                selectedDevelopmentalAge
+        );
+
+
+    renderIndividuals(
+        filteredIndividuals,
+        "No individuals match this developmental age."
+    );
+
+}
+
+
+ageFilterButton.addEventListener(
+    "click",
+    () => {
+
+        if (selectedDevelopmentalAge) {
+
+            selectedDevelopmentalAge = null;
+
+            updateAgeFilterButton();
+            closeAgeFilterMenu();
+            applyDevelopmentalAgeFilter();
+
+            return;
+        }
+
+
+        const isOpen =
+            ageFilterMenu.classList.toggle(
+                "open"
+            );
+
+
+        ageFilterButton.setAttribute(
+            "aria-expanded",
+            String(isOpen)
+        );
+
+    }
+);
+
+
+ageFilterMenu.addEventListener(
+    "click",
+    (event) => {
+
+        const option =
+            event.target.closest(
+                "button[data-age]"
+            );
+
+
+        if (!option) {
+            return;
+        }
+
+
+        selectedDevelopmentalAge =
+            option.dataset.age;
+
+
+        updateAgeFilterButton();
+        closeAgeFilterMenu();
+        applyDevelopmentalAgeFilter();
+
+    }
+);
+
+
+document.addEventListener(
+    "click",
+    (event) => {
+
+        if (
+            !ageFilterMenu.classList.contains(
+                "open"
+            )
+        ) {
+            return;
+        }
+
+
+        if (
+            ageFilterButton.contains(
+                event.target
+            )
+            ||
+            ageFilterMenu.contains(
+                event.target
+            )
+        ) {
+            return;
+        }
+
+
+        closeAgeFilterMenu();
+
+    }
+);
+
+
+document.addEventListener(
+    "keydown",
+    (event) => {
+
+        if (event.key === "Escape") {
+            closeAgeFilterMenu();
+        }
+
+    }
+);
+
+
 async function loadIndividuals() {
 
     const individuals =
@@ -279,9 +631,7 @@ async function loadIndividuals() {
         );
 
 
-    renderIndividuals(
-        currentIndividuals
-    );
+    applyDevelopmentalAgeFilter();
 
 }
 
