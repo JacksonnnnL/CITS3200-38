@@ -519,33 +519,6 @@ body {
 }
 
 
-.individual-sort {
-    flex-shrink: 0;
-
-    display: flex;
-    align-items: center;
-
-    gap: 5px;
-
-    color: var(--text-muted);
-
-    font-family: monospace;
-
-    font-size: 12px;
-    font-weight: 500;
-
-    white-space: nowrap;
-}
-
-
-.sort-icon {
-    width: 18px;
-    height: 18px;
-
-    flex-shrink: 0;
-}
-
-
 .individual-list {
     display: flex;
     flex-direction: column;
@@ -1423,4 +1396,55 @@ body {
     max-width: none;
 
     cursor: pointer;
+}
+
+.individual-context-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.individual-context-row .individual-context {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.context-edit-button {
+    flex-shrink: 0;
+
+    padding: 5px 8px;
+
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    background: var(--surface);
+    color: var(--primary);
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.context-edit-button:active {
+    background: var(--background);
+}
+
+.individual-card.delete-target .context-edit-button {
+    pointer-events: none;
+    opacity: 0.45;
+}
+
+.modal-button-save {
+    border: 2px solid var(--primary);
+
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.modal-button-save:active {
+    background: var(--primary-pressed);
 }
