@@ -127,7 +127,6 @@ export function rowsToCsv(rows) {
     return lines.join('\n');
 }
 
-
 // ========================================
 // Build CSV for Individual
 // ========================================
@@ -143,6 +142,25 @@ export async function createIndividualCsv(accessionId) {
     return rowsToCsv(rows);
 }
 
+
+// ========================================
+// Create CSV Blob
+// ========================================
+
+export async function createIndividualCsvBlob(accessionId) {
+
+    const csv =
+        await createIndividualCsv(accessionId);
+
+    return new Blob(
+        [csv],
+        {
+            type: 'text/csv;charset=utf-8;'
+        }
+    );
+}
+
+
 // ========================================
 // Download CSV File
 // ========================================
@@ -152,41 +170,17 @@ export async function downloadIndividualCsv(
     fileName = 'osteomap-export.csv'
 ) {
 
-    const csv =
-        await createIndividualCsv(accessionId);
+    const blob =
+        await createIndividualCsvBlob(accessionId);
 
-    const blob = new Blob(
-        [csv],
-        {
-            type: 'text/csv;charset=utf-8;'
-        }
-    );
-
-    const url =
-        URL.createObjectURL(blob);
-
-    const link =
-        document.createElement('a');
-
-    link.href = url;
-    link.download = fileName;
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, fileName);
 }
+
 // ========================================
-// Download Skeleton JPEG
+// Download Skeleton JPEG Blob
 // ========================================
 
-export async function downloadSkeletonJpeg(
-    svgElement,
-    fileName = 'osteomap-skeleton.jpg'
-) {
+export async function createSkeletonJpegBlob(svgElement) {
 
     if (!svgElement) {
         throw new Error('No SVG element provided for JPEG export.');
@@ -263,7 +257,9 @@ export async function downloadSkeletonJpeg(
                 if (blob) {
                     resolve(blob);
                 } else {
-                    reject(new Error('Failed to create JPEG blob.'));
+                    reject(
+                        new Error('Failed to create JPEG blob.')
+                    );
                 }
             },
             'image/jpeg',
@@ -271,15 +267,92 @@ export async function downloadSkeletonJpeg(
         );
     });
 
-    const jpegUrl = URL.createObjectURL(jpegBlob);
+    return jpegBlob;
+}
 
-    const link = document.createElement('a');
-    link.href = jpegUrl;
+// ========================================
+// Download Skeleton JPEG
+// ========================================
+
+export async function downloadSkeletonJpeg(
+    svgElement,
+    fileName = 'osteomap-skeleton.jpg'
+) {
+
+    const blob =
+        await createSkeletonJpegBlob(svgElement);
+
+    downloadBlob(blob, fileName);
+}
+
+// ========================================
+// Download Blob
+// ========================================
+
+function downloadBlob(blob, fileName) {
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const link =
+        document.createElement('a');
+
+    link.href = url;
     link.download = fileName;
 
     document.body.appendChild(link);
+
     link.click();
+
     document.body.removeChild(link);
 
-    URL.revokeObjectURL(jpegUrl);
+    URL.revokeObjectURL(url);
+}
+
+// ========================================
+// Download CSV + JPEG as ZIP
+// ========================================
+
+export async function downloadIndividualZip(
+    accessionId,
+    svgElement,
+    baseFileName = 'osteomap-export'
+) {
+
+    // Create the ZIP container
+    const zip = new JSZip();
+
+
+    // Create both export files as Blobs
+    const csvBlob =
+        await createIndividualCsvBlob(accessionId);
+
+    const jpegBlob =
+        await createSkeletonJpegBlob(svgElement);
+
+
+    // Add the files to the ZIP
+    zip.file(
+        `${baseFileName}_data.csv`,
+        csvBlob
+    );
+
+    zip.file(
+        `${baseFileName}_skeleton.jpg`,
+        jpegBlob
+    );
+
+
+    // Generate the completed ZIP as a Blob
+    const zipBlob =
+        await zip.generateAsync({
+            type: 'blob'
+        });
+
+
+    // Download one ZIP file
+    downloadBlob(
+        zipBlob,
+        `${baseFileName}.zip`
+    );
 }

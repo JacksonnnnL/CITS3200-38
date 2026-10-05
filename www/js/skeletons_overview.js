@@ -14,7 +14,8 @@ import {
 
 import {
     downloadIndividualCsv,
-    downloadSkeletonJpeg
+    downloadSkeletonJpeg,
+    downloadIndividualZip
 } from './skeletonExport.js';
 
 // ========================================
@@ -595,32 +596,46 @@ exportConfirmButton?.addEventListener(
             exportJpegCheckbox.checked;
 
 
-        if (exportCsv) {
+        const baseFileName =
+            `${safeFileName(currentSite.code)}_` +
+            `${safeFileName(currentAccession.accessionNumber)}`;
 
-            const fileName =
-                `${safeFileName(currentSite.code)}_` +
-                `${safeFileName(currentAccession.accessionNumber)}_data.csv`;
+
+        const svgElement =
+            document.querySelector(
+                '#skeleton-board svg'
+            );
+
+
+        // Both selected -> ZIP
+        if (exportCsv && exportJpeg) {
+
+            await downloadIndividualZip(
+                accessionId,
+                svgElement,
+                baseFileName
+            );
+
+        }
+
+        // CSV only
+        else if (exportCsv) {
 
             await downloadIndividualCsv(
                 accessionId,
-                fileName
+                `${baseFileName}_data.csv`
             );
+
         }
 
-
-        if (exportJpeg) {
-
-            const svgElement =
-                document.querySelector('#skeleton-board svg');
-
-            const fileName =
-                `${safeFileName(currentSite.code)}_` +
-                `${safeFileName(currentAccession.accessionNumber)}_skeleton.jpg`;
+        // JPEG only
+        else if (exportJpeg) {
 
             await downloadSkeletonJpeg(
                 svgElement,
-                fileName
+                `${baseFileName}_skeleton.jpg`
             );
+
         }
 
 
