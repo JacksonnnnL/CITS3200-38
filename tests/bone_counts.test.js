@@ -21,12 +21,12 @@ import {
   countPresentElements,
   elementCodeForBone,
   getSiteBoneStats,
+  linkedSvgIds,
   summariseElementCounts,
 } from "../www/js/bone_counts.js";
 
 const { PRESENT_COMPLETE, PRESENT_FRAGMENTED, ABSENT } = PRESERVATION_STATES;
 
-// Same shape the bone-marking page saves: bone === zone === the SVG id.
 const row = (bone, state) => ({ bone, side: "", zone: bone, state });
 
 beforeEach(() => {
@@ -36,46 +36,47 @@ beforeEach(() => {
 
 describe("element codes", () => {
   it.each([
-    ["femur_right", "FEM-R"],
-    ["femur_left", "FEM-L"],
-    ["right_rib_1", "RIB-R1"],
-    ["left_rib_1", "RIB-L1"],
-    ["cervical_1", "VC1"],
-    ["cervical_2", "VC2"],
-    ["sternum", "STN"],
-    ["sacrum", "SAC"],
-    ["mandible", "MND"],
-    ["hyoid", "HYD"],
-    ["frontal", "CRA"],
-    ["occipital_3", "CRA"],
-    ["parietal_left_2", "CRA"],
-    ["inferior_nasal_concha_1", "CRA"],
-    ["os_coxae_left", "PEL-L"],
-    ["triquetrum_left", "TQ-L"],
-    ["metacarpal_3_right", "MC3-R"],
-    ["metatarsal_5_left", "MT5-L"],
-    ["medial_cuneiform_left", "CUN-L1"],
-    ["lateral_cuneiform_right", "CUN-R3"],
-    ["foot_proximal_phalanx_1_right", "PP1-R"],
-    ["foot_distal_phalanx_1_left", "DP1-L"],
+    ["FEM_R", "FEM_R"],
+    ["FEM_L", "FEM_L"],
+    ["RIB_R1", "RIB_R1"],
+    ["RIB_L1", "RIB_L1"],
+    ["VC1", "VC1"],
+    ["VC2", "VC2"],
+    ["STN", "STN"],
+    ["SAC", "SAC"],
+    ["MND", "MND"],
+    ["MND_L", "MND"],
+    ["MND_R", "MND"],
+    ["HYD", "HYD"],
+    ["CRA_ant", "CRA"],
+    ["OCC_post", "CRA"],
+    ["PAR_L_post", "CRA"],
+    ["INCO_L", "CRA"],
+    ["PEL_L", "PEL_L"],
+    ["TQ_L", "TQ_L"],
+    ["MC3_R", "MC3_R"],
+    ["MT5_L", "MT5_L"],
+    ["CUN_L1", "CUN_L1"],
+    ["CUN_R3", "CUN_R3"],
+    ["PPF1_R", "PPF1_R"],
+    ["DPF1_L", "DPF1_L"],
+    ["PPH1_R", "PPH1_R"],
+    ["DPH1_L", "DPH1_L"],
   ])("maps %s to the client code %s", (svgId, code) => {
     expect(elementCodeForBone(svgId)).toBe(code);
   });
 
   it.each([
-    // the client only counts the first rib and first two vertebrae
-    "right_rib_2",
-    "left_rib_12",
-    "cervical_3",
-    "thoracic_1",
-    "lumbar_5",
-    // no client code
-    "coccyx",
-    "foot_proximal_phalanx_2_right",
-    "malleus_left",
-    "stapes_right",
+    "RIB_R2",
+    "RIB_L12",
+    "VC3",
+    "VT1",
+    "VL5",
+    "COC",
+    "PPF2_R",
+    "MAL_L",
+    "STA_R",
     "not_a_real_bone",
-    // must not resolve through Object.prototype
     "constructor",
     "__proto__",
     undefined,
@@ -83,20 +84,38 @@ describe("element codes", () => {
     expect(elementCodeForBone(svgId)).toBeNull();
   });
 
-  it("only the cranium shares one client code between several SVG ids", () => {
+  it("CRA and MND are the only codes shared by several SVG ids", () => {
     const idsByCode = new Map();
     for (const [svgId, { code }] of ELEMENT_BY_SVG_ID) {
       idsByCode.set(code, [...(idsByCode.get(code) || []), svgId]);
     }
 
-    const shared = [...idsByCode].filter(([, ids]) => ids.length > 1).map(([code]) => code);
-    expect(shared).toEqual(["CRA"]);
+    const shared = [...idsByCode]
+      .filter(([, ids]) => ids.length > 1)
+      .map(([code]) => code)
+      .sort();
+    expect(shared).toEqual(["CRA", "MND"]);
   });
 });
 
-// Guards against the SVG assets being renamed underneath the mapping. The
-// assets live on a separate branch, so this switches on by itself once
-// they are present.
+describe("linkedSvgIds", () => {
+  it("links same-bone cranial views, not the whole skull", () => {
+    const group = linkedSvgIds("PAR_R_post");
+    expect(group.sort()).toEqual(["PAR_R_ant", "PAR_R_lat_r", "PAR_R_post"].sort());
+    expect(group).not.toContain("TEM_L_ant");
+    expect(group).not.toContain("CRA_ant");
+  });
+
+  it("links mandible parts together", () => {
+    expect(linkedSvgIds("MND_L").sort()).toEqual(["MND", "MND_L", "MND_R"].sort());
+  });
+
+  it("returns only itself for unmapped or single bones", () => {
+    expect(linkedSvgIds("FEM_R")).toEqual(["FEM_R"]);
+    expect(linkedSvgIds("bone_alpha")).toEqual(["bone_alpha"]);
+  });
+});
+
 const adultSvgDir = fileURLToPath(new URL("../www/assets/skeletons/adult/", import.meta.url));
 
 describe.skipIf(!existsSync(adultSvgDir))("element codes vs the adult SVG assets", () => {
@@ -116,33 +135,31 @@ describe.skipIf(!existsSync(adultSvgDir))("element codes vs the adult SVG assets
 describe("countPresentElements", () => {
   it("counts individuals per element and splits complete from fragmented", () => {
     const { counts } = countPresentElements([
-      [row("femur_right", PRESENT_COMPLETE)],
-      [row("femur_right", PRESENT_FRAGMENTED)],
-      [row("femur_right", PRESENT_COMPLETE), row("femur_left", PRESENT_FRAGMENTED)],
+      [row("FEM_R", PRESENT_COMPLETE)],
+      [row("FEM_R", PRESENT_FRAGMENTED)],
+      [row("FEM_R", PRESENT_COMPLETE), row("FEM_L", PRESENT_FRAGMENTED)],
     ]);
 
-    // complete/fragmented tallies are unaffected by which states count;
-    // `count` (the MNI-eligible tally) only includes the complete ones.
-    expect(counts["FEM-R"]).toMatchObject({ count: 2, complete: 2, fragmented: 1 });
-    expect(counts["FEM-L"]).toMatchObject({ count: 0, complete: 0, fragmented: 1 });
+    expect(counts["FEM_R"]).toMatchObject({ count: 2, complete: 2, fragmented: 1 });
+    expect(counts["FEM_L"]).toMatchObject({ count: 0, complete: 0, fragmented: 1 });
   });
 
   it("does not count fragmented bones towards the total (client confirmed 27 Sep: fragmented means <50% present, inventory only, not MNI)", () => {
-    const { counts } = countPresentElements([[row("femur_right", PRESENT_FRAGMENTED)]]);
-    expect(counts["FEM-R"]).toMatchObject({ count: 0, complete: 0, fragmented: 1 });
+    const { counts } = countPresentElements([[row("FEM_R", PRESENT_FRAGMENTED)]]);
+    expect(counts["FEM_R"]).toMatchObject({ count: 0, complete: 0, fragmented: 1 });
   });
 
   it("does not count absent bones", () => {
-    const { counts } = countPresentElements([[row("femur_right", ABSENT)]]);
-    expect(counts["FEM-R"]).toBeUndefined();
+    const { counts } = countPresentElements([[row("FEM_R", ABSENT)]]);
+    expect(counts["FEM_R"]).toBeUndefined();
   });
 
   it("treats the skull as one element however many of its bones are marked", () => {
     const { counts } = countPresentElements([
       [
-        row("frontal", PRESENT_COMPLETE),
-        row("occipital_3", PRESENT_FRAGMENTED),
-        row("parietal_right", PRESENT_COMPLETE),
+        row("CRA_ant", PRESENT_COMPLETE),
+        row("OCC_post", PRESENT_FRAGMENTED),
+        row("PAR_R_post", PRESENT_COMPLETE),
       ],
     ]);
 
@@ -150,51 +167,53 @@ describe("countPresentElements", () => {
   });
 
   it("counts a skull as present when only one of its bones is marked", () => {
-    const { counts } = countPresentElements([[row("lacrimal_left", PRESENT_COMPLETE)]]);
+    const { counts } = countPresentElements([[row("LAC_L_ant", PRESENT_COMPLETE)]]);
     expect(counts["CRA"]).toMatchObject({ count: 1, complete: 1, fragmented: 0 });
   });
 
   it("keeps the mandible and hyoid separate from the skull", () => {
-    const { counts } = countPresentElements([[row("mandible", PRESENT_COMPLETE), row("hyoid", PRESENT_COMPLETE)]]);
+    const { counts } = countPresentElements([
+      [row("MND", PRESENT_COMPLETE), row("HYD", PRESENT_COMPLETE)],
+    ]);
 
     expect(Object.keys(counts).sort()).toEqual(["HYD", "MND"]);
   });
 
   it("does not count the ear ossicles as part of the skull", () => {
-    const { counts, ignoredBones } = countPresentElements([[row("malleus_left", PRESENT_COMPLETE)]]);
+    const { counts, ignoredBones } = countPresentElements([[row("MAL_L", PRESENT_COMPLETE)]]);
 
     expect(counts).toEqual({});
-    expect(ignoredBones).toEqual(["malleus_left"]);
+    expect(ignoredBones).toEqual(["MAL_L"]);
   });
 
   it("counts an individual once per element even with several rows for it", () => {
     const { counts } = countPresentElements([
       [
-        { bone: "femur_right", side: "", zone: "shaft", state: PRESENT_FRAGMENTED },
-        { bone: "femur_right", side: "", zone: "head", state: PRESENT_COMPLETE },
+        { bone: "FEM_R", side: "", zone: "shaft", state: PRESENT_FRAGMENTED },
+        { bone: "FEM_R", side: "", zone: "head", state: PRESENT_COMPLETE },
       ],
     ]);
 
-    expect(counts["FEM-R"]).toMatchObject({ count: 1, complete: 1, fragmented: 0 });
+    expect(counts["FEM_R"]).toMatchObject({ count: 1, complete: 1, fragmented: 0 });
   });
 
   it("reports bones that are not part of the counts, sorted and de-duplicated", () => {
     const { counts, ignoredBones } = countPresentElements([
-      [row("right_rib_2", PRESENT_COMPLETE), row("coccyx", PRESENT_COMPLETE)],
-      [row("right_rib_2", PRESENT_COMPLETE)],
+      [row("RIB_R2", PRESENT_COMPLETE), row("COC", PRESENT_COMPLETE)],
+      [row("RIB_R2", PRESENT_COMPLETE)],
     ]);
 
     expect(counts).toEqual({});
-    expect(ignoredBones).toEqual(["coccyx", "right_rib_2"]);
+    expect(ignoredBones).toEqual(["COC", "RIB_R2"]);
   });
 
   it("can be restricted to complete elements only", () => {
     const { counts } = countPresentElements(
-      [[row("femur_right", PRESENT_COMPLETE)], [row("femur_right", PRESENT_FRAGMENTED)]],
+      [[row("FEM_R", PRESENT_COMPLETE)], [row("FEM_R", PRESENT_FRAGMENTED)]],
       { presentStates: [PRESENT_COMPLETE] }
     );
 
-    expect(counts["FEM-R"]).toMatchObject({ count: 1, complete: 1, fragmented: 1 });
+    expect(counts["FEM_R"]).toMatchObject({ count: 1, complete: 1, fragmented: 1 });
   });
 
   it("counts only complete elements by default", () => {
@@ -207,8 +226,8 @@ describe("summariseElementCounts", () => {
 
   it("uses the highest present count as the MNI", () => {
     const { mni } = summariseElementCounts({
-      "FEM-R": entry("FEM-R", 4),
-      "HUM-L": entry("HUM-L", 2),
+      FEM_R: entry("FEM_R", 4),
+      HUM_L: entry("HUM_L", 2),
     });
 
     expect(mni).toBe(4);
@@ -221,12 +240,12 @@ describe("summariseElementCounts", () => {
   it("ranks by count then code, and limits to the top 5", () => {
     const counts = {};
     for (const [code, count] of [
-      ["TIB-R", 2],
-      ["FEM-R", 5],
-      ["FEM-L", 2],
-      ["HUM-R", 3],
-      ["ULN-R", 2],
-      ["RAD-R", 1],
+      ["TIB_R", 2],
+      ["FEM_R", 5],
+      ["FEM_L", 2],
+      ["HUM_R", 3],
+      ["ULN_R", 2],
+      ["RAD_R", 1],
       ["SAC", 4],
     ]) {
       counts[code] = entry(code, count);
@@ -235,32 +254,35 @@ describe("summariseElementCounts", () => {
     const { topElements } = summariseElementCounts(counts);
 
     expect(topElements.map((element) => element.code)).toEqual([
-      "FEM-R",
+      "FEM_R",
       "SAC",
-      "HUM-R",
-      "FEM-L",
-      "TIB-R",
+      "HUM_R",
+      "FEM_L",
+      "TIB_R",
     ]);
   });
 
   it("sorts codes with numbers naturally when counts tie", () => {
     const counts = {
-      "MC10-R": entry("MC10-R", 1),
-      "MC2-R": entry("MC2-R", 1),
+      MC10_R: entry("MC10_R", 1),
+      MC2_R: entry("MC2_R", 1),
     };
 
-    expect(summariseElementCounts(counts).topElements.map((e) => e.code)).toEqual(["MC2-R", "MC10-R"]);
+    expect(summariseElementCounts(counts).topElements.map((e) => e.code)).toEqual([
+      "MC2_R",
+      "MC10_R",
+    ]);
   });
 
   it("skips elements whose count is 0", () => {
-    const { topElements } = summariseElementCounts({ "FEM-R": entry("FEM-R", 0) });
+    const { topElements } = summariseElementCounts({ FEM_R: entry("FEM_R", 0) });
     expect(topElements).toEqual([]);
   });
 });
 
 describe("computeBoneStats", () => {
   it("includes individuals who have no bones recorded in the individual count", () => {
-    const stats = computeBoneStats([[row("femur_right", PRESENT_COMPLETE)], []]);
+    const stats = computeBoneStats([[row("FEM_R", PRESENT_COMPLETE)], []]);
     expect(stats.individualCount).toBe(2);
     expect(stats.mni).toBe(1);
   });
@@ -285,39 +307,35 @@ describe("getSiteBoneStats", () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 3);
     const [a, b, c] = individuals;
 
-    await mark(a, "femur_right", PRESENT_COMPLETE);
-    await mark(a, "humerus_right", PRESENT_FRAGMENTED);
-    await mark(a, "femur_left", ABSENT);
-    await mark(b, "femur_right", PRESENT_FRAGMENTED);
-    await mark(c, "femur_right", PRESENT_COMPLETE);
-    await mark(c, "tibia_left", PRESENT_COMPLETE);
+    await mark(a, "FEM_R", PRESENT_COMPLETE);
+    await mark(a, "HUM_R", PRESENT_FRAGMENTED);
+    await mark(a, "FEM_L", ABSENT);
+    await mark(b, "FEM_R", PRESENT_FRAGMENTED);
+    await mark(c, "FEM_R", PRESENT_COMPLETE);
+    await mark(c, "TIB_L", PRESENT_COMPLETE);
 
     const stats = await getSiteBoneStats(site.id);
 
-    // b's femur_right and a's humerus_right are Fragmented, so neither
-    // counts towards MNI — only a and c's complete femurs do.
     expect(stats.individualCount).toBe(3);
     expect(stats.mni).toBe(2);
     expect(stats.topElements.map((e) => [e.code, e.count])).toEqual([
-      ["FEM-R", 2],
-      ["TIB-L", 1],
+      ["FEM_R", 2],
+      ["TIB_L", 1],
     ]);
-    expect(stats.counts["FEM-L"]).toBeUndefined();
+    expect(stats.counts["FEM_L"]).toBeUndefined();
   });
 
   it("counts the skull once per individual and can drive the MNI", async () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 3);
     const [a, b, c] = individuals;
 
-    await mark(a, "frontal", PRESENT_COMPLETE);
-    await mark(a, "occipital_2", PRESENT_COMPLETE);
-    await mark(b, "parietal_1", PRESENT_FRAGMENTED);
-    await mark(c, "femur_right", PRESENT_COMPLETE);
+    await mark(a, "CRA_ant", PRESENT_COMPLETE);
+    await mark(a, "OCC_lat_r", PRESENT_COMPLETE);
+    await mark(b, "PAR_L_ant", PRESENT_FRAGMENTED);
+    await mark(c, "FEM_R", PRESENT_COMPLETE);
 
     const stats = await getSiteBoneStats(site.id);
 
-    // b's skull is only Fragmented, so it doesn't add to the CRA count —
-    // just a's complete skull does, tying CRA with c's complete femur.
     expect(stats.mni).toBe(1);
     expect(stats.topElements[0]).toMatchObject({ code: "CRA", label: "Cranium", count: 1 });
   });
@@ -340,15 +358,14 @@ describe("getSiteBoneStats", () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 2);
     const [a, b] = individuals;
 
-    await mark(a, "femur_right", PRESENT_COMPLETE);
-    await mark(b, "femur_right", PRESENT_COMPLETE);
+    await mark(a, "FEM_R", PRESENT_COMPLETE);
+    await mark(b, "FEM_R", PRESENT_COMPLETE);
     expect((await getSiteBoneStats(site.id)).mni).toBe(2);
 
-    await mark(b, "femur_right", ABSENT);
+    await mark(b, "FEM_R", ABSENT);
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
 
-    // Fragmented doesn't count either, so the MNI stays at 1, not back to 2.
-    await mark(b, "femur_right", PRESENT_FRAGMENTED);
+    await mark(b, "FEM_R", PRESENT_FRAGMENTED);
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
   });
 
@@ -356,17 +373,17 @@ describe("getSiteBoneStats", () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 1);
     const [a] = individuals;
 
-    await mark(a, "femur_right", PRESENT_COMPLETE);
+    await mark(a, "FEM_R", PRESENT_COMPLETE);
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
 
-    await clearZoneState({ accessionId: a.id, bone: "femur_right", zone: "femur_right" });
+    await clearZoneState({ accessionId: a.id, bone: "FEM_R", zone: "FEM_R" });
     expect((await getSiteBoneStats(site.id)).mni).toBe(0);
   });
 
   it("updates when an individual is deleted", async () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 3);
 
-    for (const individual of individuals) await mark(individual, "femur_right", PRESENT_COMPLETE);
+    for (const individual of individuals) await mark(individual, "FEM_R", PRESENT_COMPLETE);
     expect((await getSiteBoneStats(site.id)).mni).toBe(3);
 
     await deleteAccession(individuals[0].id);
@@ -378,11 +395,11 @@ describe("getSiteBoneStats", () => {
 
   it("updates when an individual is added", async () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 1);
-    await mark(individuals[0], "femur_right", PRESENT_COMPLETE);
+    await mark(individuals[0], "FEM_R", PRESENT_COMPLETE);
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
 
     const added = await createAccession({ siteId: site.id, accessionNumber: "SK99" });
-    await mark(added, "femur_right", PRESENT_COMPLETE);
+    await mark(added, "FEM_R", PRESENT_COMPLETE);
 
     expect((await getSiteBoneStats(site.id)).mni).toBe(2);
   });
@@ -391,8 +408,8 @@ describe("getSiteBoneStats", () => {
     const one = await siteWithIndividuals("WES001", 2);
     const two = await siteWithIndividuals("WES002", 1);
 
-    for (const individual of one.individuals) await mark(individual, "femur_right", PRESENT_COMPLETE);
-    await mark(two.individuals[0], "femur_right", PRESENT_COMPLETE);
+    for (const individual of one.individuals) await mark(individual, "FEM_R", PRESENT_COMPLETE);
+    await mark(two.individuals[0], "FEM_R", PRESENT_COMPLETE);
 
     expect((await getSiteBoneStats(one.site.id)).mni).toBe(2);
     expect((await getSiteBoneStats(two.site.id)).mni).toBe(1);
@@ -400,26 +417,17 @@ describe("getSiteBoneStats", () => {
 
   it("ignores bones that are not counted, without failing", async () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 1);
-    await mark(individuals[0], "right_rib_7", PRESENT_COMPLETE);
-    await mark(individuals[0], "thoracic_4", PRESENT_COMPLETE);
+    await mark(individuals[0], "RIB_R7", PRESENT_COMPLETE);
+    await mark(individuals[0], "VT4", PRESENT_COMPLETE);
 
     const stats = await getSiteBoneStats(site.id);
 
     expect(stats.mni).toBe(0);
-    expect(stats.ignoredBones).toEqual(["right_rib_7", "thoracic_4"]);
+    expect(stats.topElements).toEqual([]);
+    expect(stats.ignoredBones).toEqual(["RIB_R7", "VT4"]);
   });
 
-  it("can count complete elements only", async () => {
-    const { site, individuals } = await siteWithIndividuals("WES001", 2);
-    await mark(individuals[0], "femur_right", PRESENT_COMPLETE);
-    await mark(individuals[1], "femur_right", PRESENT_FRAGMENTED);
-
-    const stats = await getSiteBoneStats(site.id, { presentStates: [PRESENT_COMPLETE] });
-
-    expect(stats.mni).toBe(1);
-  });
-
-  it("throws NotFoundError for a site that does not exist", async () => {
-    await expect(getSiteBoneStats("does-not-exist")).rejects.toBeInstanceOf(NotFoundError);
+  it("throws NotFoundError for an unknown site", async () => {
+    await expect(getSiteBoneStats("missing-site")).rejects.toBeInstanceOf(NotFoundError);
   });
 });
