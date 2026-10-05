@@ -121,8 +121,15 @@ describe("countPresentElements", () => {
       [row("femur_right", PRESENT_COMPLETE), row("femur_left", PRESENT_FRAGMENTED)],
     ]);
 
-    expect(counts["FEM-R"]).toMatchObject({ count: 3, complete: 2, fragmented: 1 });
-    expect(counts["FEM-L"]).toMatchObject({ count: 1, complete: 0, fragmented: 1 });
+    // complete/fragmented tallies are unaffected by which states count;
+    // `count` (the MNI-eligible tally) only includes the complete ones.
+    expect(counts["FEM-R"]).toMatchObject({ count: 2, complete: 2, fragmented: 1 });
+    expect(counts["FEM-L"]).toMatchObject({ count: 0, complete: 0, fragmented: 1 });
+  });
+
+  it("does not count fragmented bones towards the total (client confirmed 27 Sep: fragmented means <50% present, inventory only, not MNI)", () => {
+    const { counts } = countPresentElements([[row("femur_right", PRESENT_FRAGMENTED)]]);
+    expect(counts["FEM-R"]).toMatchObject({ count: 0, complete: 0, fragmented: 1 });
   });
 
   it("does not count absent bones", () => {
@@ -143,8 +150,8 @@ describe("countPresentElements", () => {
   });
 
   it("counts a skull as present when only one of its bones is marked", () => {
-    const { counts } = countPresentElements([[row("lacrimal_left", PRESENT_FRAGMENTED)]]);
-    expect(counts["CRA"]).toMatchObject({ count: 1, complete: 0, fragmented: 1 });
+    const { counts } = countPresentElements([[row("lacrimal_left", PRESENT_COMPLETE)]]);
+    expect(counts["CRA"]).toMatchObject({ count: 1, complete: 1, fragmented: 0 });
   });
 
   it("keeps the mandible and hyoid separate from the skull", () => {
@@ -190,8 +197,8 @@ describe("countPresentElements", () => {
     expect(counts["FEM-R"]).toMatchObject({ count: 1, complete: 1, fragmented: 1 });
   });
 
-  it("counts both present states by default", () => {
-    expect(PRESENT_STATES).toEqual([PRESENT_COMPLETE, PRESENT_FRAGMENTED]);
+  it("counts only complete elements by default", () => {
+    expect(PRESENT_STATES).toEqual([PRESENT_COMPLETE]);
   });
 });
 
@@ -287,11 +294,12 @@ describe("getSiteBoneStats", () => {
 
     const stats = await getSiteBoneStats(site.id);
 
+    // b's femur_right and a's humerus_right are Fragmented, so neither
+    // counts towards MNI — only a and c's complete femurs do.
     expect(stats.individualCount).toBe(3);
-    expect(stats.mni).toBe(3);
+    expect(stats.mni).toBe(2);
     expect(stats.topElements.map((e) => [e.code, e.count])).toEqual([
-      ["FEM-R", 3],
-      ["HUM-R", 1],
+      ["FEM-R", 2],
       ["TIB-L", 1],
     ]);
     expect(stats.counts["FEM-L"]).toBeUndefined();
@@ -308,8 +316,10 @@ describe("getSiteBoneStats", () => {
 
     const stats = await getSiteBoneStats(site.id);
 
-    expect(stats.mni).toBe(2);
-    expect(stats.topElements[0]).toMatchObject({ code: "CRA", label: "Cranium", count: 2 });
+    // b's skull is only Fragmented, so it doesn't add to the CRA count —
+    // just a's complete skull does, tying CRA with c's complete femur.
+    expect(stats.mni).toBe(1);
+    expect(stats.topElements[0]).toMatchObject({ code: "CRA", label: "Cranium", count: 1 });
   });
 
   it("returns an MNI of 0 for a site with individuals but nothing recorded", async () => {
@@ -337,8 +347,9 @@ describe("getSiteBoneStats", () => {
     await mark(b, "femur_right", ABSENT);
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
 
+    // Fragmented doesn't count either, so the MNI stays at 1, not back to 2.
     await mark(b, "femur_right", PRESENT_FRAGMENTED);
-    expect((await getSiteBoneStats(site.id)).mni).toBe(2);
+    expect((await getSiteBoneStats(site.id)).mni).toBe(1);
   });
 
   it("updates when a bone state is cleared", async () => {
