@@ -33,9 +33,6 @@ beforeAll(async () => {
                 <button id="all-present-button" class="segment-tab" disabled></button>
             </div>
             <div id="skeleton-select-container"></div>
-            <div id="selected-info">
-                <span id="selected-zone-label"></span>
-            </div>
             <div id="details-box">
                 <button id="details-close"></button>
                 <div id="detail-bone-name"></div>
@@ -168,12 +165,8 @@ describe("All Present button", () => {
         expect(beta.style.fill).toBe(GREEN);
         expect(gamma.style.fill).toBe(GREEN);
 
-        // --- Reviewer feedback: verify persistence, not just colouring ---
-
-        // Call-count check: all three bones must be saved.
         expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
 
-        // Argument check: at least one bone, exact shape.
         expect(setZoneStateSpy).toHaveBeenCalledWith({
             accessionId: "test-id",
             bone: "bone_alpha",
@@ -210,6 +203,30 @@ describe("All Present button", () => {
         await new Promise((r) => setTimeout(r, 0));
 
         expect(allPresentButton.hasAttribute("disabled")).toBe(false);
+    });
+
+    it("updates every id in a linked cranial group once", async () => {
+        setSegmentSvg(["PAR_R_post", "PAR_R_lat_r", "PAR_R_ant"]);
+        allPresentButton.disabled = false;
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(container.querySelector("#PAR_R_post path").style.fill).toBe(GREEN);
+        expect(container.querySelector("#PAR_R_lat_r path").style.fill).toBe(GREEN);
+        expect(container.querySelector("#PAR_R_ant path").style.fill).toBe(GREEN);
+
+        expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
+        expect(setZoneStateSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ bone: "PAR_R_post", state: "present-complete" })
+        );
+        expect(setZoneStateSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ bone: "PAR_R_lat_r", state: "present-complete" })
+        );
+        expect(setZoneStateSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ bone: "PAR_R_ant", state: "present-complete" })
+        );
     });
 
 });
