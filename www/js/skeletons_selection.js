@@ -64,7 +64,6 @@ const detailsBox = document.getElementById('details-box');
 const detailBoneName = document.getElementById('detail-bone-name');
 const detailStatusText = document.getElementById('detail-status-text');
 const detailStatusDot = document.getElementById('detail-status-dot');
-const selectedZoneLabel = document.getElementById('selected-zone-label');
 const selectedSegmentName = document.getElementById('selected-segment-name');
 const segmentTabs = document.getElementById('segment-tabs');
 const detailsCloseButton = document.getElementById('details-close');
@@ -73,7 +72,6 @@ const allPresentButton = document.getElementById('all-present-button');
 function closeDetailsBox() {
     detailsBox.style.display = 'none';
     selectedBone = null;
-    selectedZoneLabel.textContent = 'None';
 
     container.querySelectorAll('g[id]').forEach(el => {
         el.classList.remove('selected');
@@ -324,7 +322,6 @@ function handleBoneClick(element) {
     detailStatusText.textContent = STATE_LABELS[currentState];
     detailStatusDot.style.background = STATE_DOTS[currentState];
     detailsBox.style.display = 'block';
-    selectedZoneLabel.textContent = boneId;
 }
 
 detailsCloseButton.addEventListener('click', (e) => {
