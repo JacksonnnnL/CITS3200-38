@@ -29,6 +29,16 @@ describe("isNonBoneId", () => {
         }
     });
 
+    it("includes the new wrapper ids", () => {
+        expect(CONTAINER_IDS.has("skeletal_system")).toBe(true);
+        expect(CONTAINER_IDS.has("skull_top")).toBe(true);
+        expect(CONTAINER_IDS.has("auditory_ossicles_left")).toBe(true);
+        expect(CONTAINER_IDS.has("auditory_ossicles_right")).toBe(true);
+        expect(isNonBoneId("skeletal_system")).toBe(true);
+        expect(isNonBoneId("skull_top")).toBe(true);
+        expect(isNonBoneId("auditory_ossicles_left")).toBe(true);
+    });
+
     it("rejects internal wrappers", () => {
         expect(isNonBoneId("Vector_1")).toBe(true);
         expect(isNonBoneId("Group 16")).toBe(true);
@@ -38,10 +48,11 @@ describe("isNonBoneId", () => {
     });
 
     it("accepts real bone ids", () => {
-        expect(isNonBoneId("femur_left")).toBe(false);
-        expect(isNonBoneId("frontal_right")).toBe(false);
-        expect(isNonBoneId("cervical_3")).toBe(false);
-        expect(isNonBoneId("rib_7_left")).toBe(false);
+        expect(isNonBoneId("FEM_L")).toBe(false);
+        expect(isNonBoneId("PAR_R_post")).toBe(false);
+        expect(isNonBoneId("VC3")).toBe(false);
+        expect(isNonBoneId("RIB_L7")).toBe(false);
+        expect(isNonBoneId("CRA_ant")).toBe(false);
     });
 });
 
