@@ -10,6 +10,8 @@ import {
 // IDs that belong to container "views" or wrappers, not bones:
 //   - Segment roots (pelvis, cranium, ...)
 //   - Cranium sub-views (skull_anterior, skull_right_lateral, ...)
+//   - Composite overview root (skeletal_system)
+//   - Ossicle wrappers (auditory_ossicles_left / right)
 // Anything in this set is skipped when walking the SVG.
 // Add any new segment root here — both skeleton pages pick it up.
 export const CONTAINER_IDS = new Set([
@@ -20,12 +22,17 @@ export const CONTAINER_IDS = new Set([
     'left_upper_limb',
     'right_lower_limb',
     'left_lower_limb',
+    'skeletal_system',
 
     'skull_anterior',
     'skull_right_lateral',
     'skull_left_lateral',
     'skull_posterior',
-    'skull_inferior'
+    'skull_inferior',
+    'skull_top',
+
+    'auditory_ossicles_left',
+    'auditory_ossicles_right'
 ]);
 
 // True if the id is NOT a real bone: empty, a container / view
