@@ -120,7 +120,7 @@ describe("element codes", () => {
     "VT1",
     "VL5",
     "COC",
-    // Non-hallux phalanges are visual only.
+    // Non-digit-1 phalanges are visual only.
     "PPF2_R",
     // Ear ossicles are not part of the MNI set.
     "MAL_L",
@@ -146,6 +146,13 @@ describe("element codes", () => {
       .sort();
     expect(shared).toEqual(["CRA", "MND"]);
   });
+
+  it("labels the hand digit-1 phalanges as 'thumb', not 'hallux'", () => {
+    expect(ELEMENT_BY_SVG_ID.get("PPH1_R").label).toMatch(/thumb/i);
+    expect(ELEMENT_BY_SVG_ID.get("DPH1_L").label).toMatch(/thumb/i);
+    expect(ELEMENT_BY_SVG_ID.get("PPF1_R").label).toMatch(/hallux/i);
+    expect(ELEMENT_BY_SVG_ID.get("DPF1_L").label).toMatch(/hallux/i);
+  });
 });
 
 describe("linkedSvgIds", () => {
@@ -164,6 +171,20 @@ describe("linkedSvgIds", () => {
     expect(linkedSvgIds("CRA_lat_r").sort()).toEqual(
       ["CRA_ant", "CRA_lat_l", "CRA_lat_r"].sort()
     );
+  });
+
+  it("links sphenoid views across both sides (client point 5)", () => {
+    expect(linkedSvgIds("SPH_L_lat_l").sort()).toEqual(
+      ["SPH_L_lat_l", "SPH_R_lat_r", "SPH_inf"].sort()
+    );
+    expect(linkedSvgIds("SPH_R_lat_r").sort()).toEqual(
+      ["SPH_L_lat_l", "SPH_R_lat_r", "SPH_inf"].sort()
+    );
+  });
+
+  it("does not cross-link left and right palatine", () => {
+    expect(linkedSvgIds("PAL_L_inf")).toEqual(["PAL_L_inf"]);
+    expect(linkedSvgIds("PAL_R_inf")).toEqual(["PAL_R_inf"]);
   });
 
   it("returns only itself for unmapped or single bones", () => {
