@@ -150,11 +150,12 @@ function buildElementTable() {
       );
     }
 
-    // Hallux phalanges only (hand PPH/DPH, foot PPF/DPF)
-    add(`PPH1_${side.letter}`, `PPH1_${side.letter}`, `${side.label} hallux proximal phalanx (hand)`);
-    add(`DPH1_${side.letter}`, `DPH1_${side.letter}`, `${side.label} hallux distal phalanx (hand)`);
-    add(`PPF1_${side.letter}`, `PPF1_${side.letter}`, `${side.label} hallux proximal phalanx (foot)`);
-    add(`DPF1_${side.letter}`, `DPF1_${side.letter}`, `${side.label} hallux distal phalanx (foot)`);
+    // Digit 1 phalanges only — thumb (hand, PPH/DPH) and hallux (foot, PPF/DPF).
+    // Both are on the client's MNI list; other digits are visual only.
+    add(`PPH1_${side.letter}`, `PPH1_${side.letter}`, `${side.label} thumb proximal phalanx`);
+    add(`DPH1_${side.letter}`, `DPH1_${side.letter}`, `${side.label} thumb distal phalanx`);
+    add(`PPF1_${side.letter}`, `PPF1_${side.letter}`, `${side.label} hallux proximal phalanx`);
+    add(`DPF1_${side.letter}`, `DPF1_${side.letter}`, `${side.label} hallux distal phalanx`);
   }
 
   return table;
@@ -195,7 +196,7 @@ const LINKED_VIEW_GROUPS = [
   ["LAC_R_lat_r", "LAC_R_ant"],
   ["OCC_lat_l", "OCC_lat_r", "OCC_inf", "OCC_post"],
   ["SPH_L_lat_l", "SPH_R_lat_r", "SPH_inf"],
-  ["PAL_L_inf", "PAL_R_inf"],
+  // ["PAL_L_inf", "PAL_R_inf"],
   ["VOM_ant", "VOM_inf"],
   ["MND", "MND_L", "MND_R"],
 ];
