@@ -11,12 +11,14 @@
 // step with the database when a bone state, or a whole individual,
 // changes or is deleted.
 //
-// The bone-marking pages save the SVG element id as `bone` (for example
-// "FEM_R"). The client identifies elements by short codes (for example
-// "FEM_R"), so ELEMENT_BY_SVG_ID translates between the two. Only
-// elements listed there are counted, which matches the client's rule
-// that just the first rib and first two vertebrae go into bone counts
-// while the remaining ribs/vertebrae are recorded visually only.
+// The bone-marking pages save the SVG element id as `bone`. For
+// every non-cranial, non-mandible element the SVG id IS the client's
+// MNI code (e.g. FEM_R, RIB_R1, STN, VC1, MC3_R, PPH1_R). Cranial
+// views all map to CRA; mandible views (MND, MND_L, MND_R) map to MND.
+// Only elements listed in ELEMENT_BY_SVG_ID are counted, which
+// matches the client's rule that just the first rib and first two
+// vertebrae go into bone counts while the remaining ribs/vertebrae are
+// recorded visually only.
 // ========================================
 
 import {
@@ -38,7 +40,7 @@ export const PRESENT_STATES = Object.freeze([PRESERVATION_STATES.PRESENT_COMPLET
 export const TOP_ELEMENT_LIMIT = 5;
 
 // ========================================
-// Client element codes (MNI)
+// Client element codes (MNI) — also the SVG ids
 // ========================================
 
 const SIDES = [
@@ -46,7 +48,8 @@ const SIDES = [
   { letter: "L", label: "Left" },
 ];
 
-// SVG id pattern is CODE_SIDE (e.g. FEM_R). Client MNI codes match.
+// [code, name] — SVG id and client MNI code are both
+// `${code}_${letter}` (e.g. FEM_R, CLA_L).
 const SIDED_BONES = [
   ["CLA", "clavicle"],
   ["SCA", "scapula"],
@@ -101,32 +104,45 @@ function buildElementTable() {
   const table = new Map();
   const add = (svgId, code, label) => table.set(svgId, Object.freeze({ code, label }));
 
+  // --- Axial (single, non-sided) ---
   add("STN", "STN", "Sternum");
   add("SAC", "SAC", "Sacrum");
   add("HYD", "HYD", "Hyoid");
 
+  // --- Cranium + mandible ---
   for (const svgId of CRANIAL_SVG_IDS) add(svgId, "CRA", "Cranium");
   for (const svgId of MANDIBLE_SVG_IDS) add(svgId, "MND", "Mandible");
 
+  // --- Vertebrae (only C1 and C2 count; rest are visual only) ---
   add("VC1", "VC1", "Atlas (C1)");
   add("VC2", "VC2", "Axis (C2)");
 
+  // --- Sided bones ---
   for (const side of SIDES) {
     for (const [code, name] of SIDED_BONES) {
       add(`${code}_${side.letter}`, `${code}_${side.letter}`, `${side.label} ${name}`);
     }
 
+    // Pelvis (os coxae)
     add(`PEL_${side.letter}`, `PEL_${side.letter}`, `${side.label} os coxae (pelvis)`);
+
+    // First rib only
     add(`RIB_${side.letter}1`, `RIB_${side.letter}1`, `${side.label} first rib`);
 
+    // Metacarpals 1–5
     for (let n = 1; n <= 5; n++) {
       add(`MC${n}_${side.letter}`, `MC${n}_${side.letter}`, `${side.label} metacarpal ${n}`);
+    }
+
+    // Metatarsals 1–5
+    for (let n = 1; n <= 5; n++) {
       add(`MT${n}_${side.letter}`, `MT${n}_${side.letter}`, `${side.label} metatarsal ${n}`);
     }
 
     // Cuneiforms: 1 medial -> 3 lateral (CUN_R1 next to the big toe).
     for (let n = 1; n <= 3; n++) {
-      const position = n === 1 ? "medial" : n === 2 ? "intermediate" : "lateral";
+      const position =
+        n === 1 ? "medial" : n === 2 ? "intermediate" : "lateral";
       add(
         `CUN_${side.letter}${n}`,
         `CUN_${side.letter}${n}`,
@@ -134,7 +150,7 @@ function buildElementTable() {
       );
     }
 
-    // Client labels only the hallux phalanges for MNI (hand PPH/DPH, foot PPF/DPF).
+    // Hallux phalanges only (hand PPH/DPH, foot PPF/DPF)
     add(`PPH1_${side.letter}`, `PPH1_${side.letter}`, `${side.label} hallux proximal phalanx (hand)`);
     add(`DPH1_${side.letter}`, `DPH1_${side.letter}`, `${side.label} hallux distal phalanx (hand)`);
     add(`PPF1_${side.letter}`, `PPF1_${side.letter}`, `${side.label} hallux proximal phalanx (foot)`);
@@ -262,7 +278,10 @@ export function countPresentElements(
 
       entry[status] += 1;
 
-      if ((status === "complete" && countsComplete) || (status === "fragmented" && countsFragmented)) {
+      if (
+        (status === "complete" && countsComplete) ||
+        (status === "fragmented" && countsFragmented)
+      ) {
         entry.count += 1;
       }
     }
@@ -271,7 +290,9 @@ export function countPresentElements(
   return { counts, ignoredBones: [...ignored].sort() };
 }
 
-const labelByCode = new Map([...ELEMENT_BY_SVG_ID.values()].map((e) => [e.code, e.label]));
+const labelByCode = new Map(
+  [...ELEMENT_BY_SVG_ID.values()].map((e) => [e.code, e.label])
+);
 
 function labelForCode(code) {
   return labelByCode.get(code) || code;
@@ -282,7 +303,11 @@ function labelForCode(code) {
 export function summariseElementCounts(counts, { topN = TOP_ELEMENT_LIMIT } = {}) {
   const ranked = Object.values(counts)
     .filter((entry) => entry.count > 0)
-    .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code, "en", { numeric: true }));
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        a.code.localeCompare(b.code, "en", { numeric: true })
+    );
 
   return {
     mni: ranked.length > 0 ? ranked[0].count : 0,
@@ -292,7 +317,10 @@ export function summariseElementCounts(counts, { topN = TOP_ELEMENT_LIMIT } = {}
 
 // Pure calculation over already-loaded zone states.
 export function computeBoneStats(zoneStatesPerIndividual, options = {}) {
-  const { counts, ignoredBones } = countPresentElements(zoneStatesPerIndividual, options);
+  const { counts, ignoredBones } = countPresentElements(
+    zoneStatesPerIndividual,
+    options
+  );
 
   return {
     individualCount: zoneStatesPerIndividual.length,
