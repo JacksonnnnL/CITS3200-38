@@ -35,26 +35,43 @@ beforeEach(() => {
 });
 
 describe("element codes", () => {
+  // For every non-cranial, non-mandible element the SVG id IS the
+  // client MNI code. Cranial views map many-to-one onto CRA; the
+  // mandible views map onto MND.
   it.each([
+    // Sided bones (SVG id === client code)
     ["FEM_R", "FEM_R"],
     ["FEM_L", "FEM_L"],
+    ["CLA_R", "CLA_R"],
+    ["CLA_L", "CLA_L"],
+    ["SCA_R", "SCA_R"],
+    ["HUM_R", "HUM_R"],
+    ["HUM_L", "HUM_L"],
+    ["RAD_R", "RAD_R"],
+    ["ULN_L", "ULN_L"],
+    ["PAT_R", "PAT_R"],
+    ["TIB_L", "TIB_L"],
+    ["FIB_R", "FIB_R"],
+    ["SC_R", "SC_R"],
+    ["LU_L", "LU_L"],
+    ["TQ_R", "TQ_R"],
+    ["PI_L", "PI_L"],
+    ["TZ_R", "TZ_R"],
+    ["TR_L", "TR_L"],
+    ["CA_R", "CA_R"],
+    ["HA_L", "HA_L"],
+    ["CAL_R", "CAL_R"],
+    ["TAL_L", "TAL_L"],
+    ["CUB_R", "CUB_R"],
+    ["NAV_L", "NAV_L"],
+    ["PEL_R", "PEL_R"],
+    ["PEL_L", "PEL_L"],
     ["RIB_R1", "RIB_R1"],
     ["RIB_L1", "RIB_L1"],
-    ["VC1", "VC1"],
-    ["VC2", "VC2"],
-    ["STN", "STN"],
-    ["SAC", "SAC"],
-    ["MND", "MND"],
-    ["MND_L", "MND"],
-    ["MND_R", "MND"],
-    ["HYD", "HYD"],
-    ["CRA_ant", "CRA"],
-    ["OCC_post", "CRA"],
-    ["PAR_L_post", "CRA"],
-    ["INCO_L", "CRA"],
-    ["PEL_L", "PEL_L"],
-    ["TQ_L", "TQ_L"],
+    ["MC1_R", "MC1_R"],
     ["MC3_R", "MC3_R"],
+    ["MC5_L", "MC5_L"],
+    ["MT1_R", "MT1_R"],
     ["MT5_L", "MT5_L"],
     ["CUN_L1", "CUN_L1"],
     ["CUN_R3", "CUN_R3"],
@@ -62,20 +79,53 @@ describe("element codes", () => {
     ["DPF1_L", "DPF1_L"],
     ["PPH1_R", "PPH1_R"],
     ["DPH1_L", "DPH1_L"],
+
+    // Axial (SVG id === client code)
+    ["STN", "STN"],
+    ["SAC", "SAC"],
+    ["HYD", "HYD"],
+    ["VC1", "VC1"],
+    ["VC2", "VC2"],
+
+    // Cranial views -> CRA
+    ["CRA_ant", "CRA"],
+    ["OCC_post", "CRA"],
+    ["PAR_L_post", "CRA"],
+    ["PAR_R_ant", "CRA"],
+    ["TEM_L_inf", "CRA"],
+    ["TEM_R_lat_r", "CRA"],
+    ["NAS_L_ant", "CRA"],
+    ["MAX_R_inf", "CRA"],
+    ["ZYG_L_lat_l", "CRA"],
+    ["LAC_R_ant", "CRA"],
+    ["SPH_inf", "CRA"],
+    ["PAL_L_inf", "CRA"],
+    ["VOM_ant", "CRA"],
+    ["INCO_L", "CRA"],
+
+    // Mandible views -> MND
+    ["MND", "MND"],
+    ["MND_L", "MND"],
+    ["MND_R", "MND"],
   ])("maps %s to the client code %s", (svgId, code) => {
     expect(elementCodeForBone(svgId)).toBe(code);
   });
 
   it.each([
+    // Ribs beyond the first are recorded visually only.
     "RIB_R2",
     "RIB_L12",
+    // Only C1 and C2 go into MNI; other vertebrae are visual only.
     "VC3",
     "VT1",
     "VL5",
     "COC",
+    // Non-hallux phalanges are visual only.
     "PPF2_R",
+    // Ear ossicles are not part of the MNI set.
     "MAL_L",
     "STA_R",
+    // Junk / defensive
     "not_a_real_bone",
     "constructor",
     "__proto__",
@@ -110,13 +160,21 @@ describe("linkedSvgIds", () => {
     expect(linkedSvgIds("MND_L").sort()).toEqual(["MND", "MND_L", "MND_R"].sort());
   });
 
+  it("links CRA lateral / anterior views together", () => {
+    expect(linkedSvgIds("CRA_lat_r").sort()).toEqual(
+      ["CRA_ant", "CRA_lat_l", "CRA_lat_r"].sort()
+    );
+  });
+
   it("returns only itself for unmapped or single bones", () => {
     expect(linkedSvgIds("FEM_R")).toEqual(["FEM_R"]);
     expect(linkedSvgIds("bone_alpha")).toEqual(["bone_alpha"]);
   });
 });
 
-const adultSvgDir = fileURLToPath(new URL("../www/assets/skeletons/adult/", import.meta.url));
+const adultSvgDir = fileURLToPath(
+  new URL("../www/assets/skeletons/adult/", import.meta.url)
+);
 
 describe.skipIf(!existsSync(adultSvgDir))("element codes vs the adult SVG assets", () => {
   it("every mapped SVG id exists in the adult SVG files", () => {
@@ -124,7 +182,8 @@ describe.skipIf(!existsSync(adultSvgDir))("element codes vs the adult SVG assets
 
     for (const file of readdirSync(adultSvgDir).filter((name) => name.endsWith(".svg"))) {
       const svg = readFileSync(`${adultSvgDir}/${file}`, "utf8");
-      for (const match of svg.matchAll(/<g[^>]*\sid="([^"]+)"/g)) ids.add(match[1]);
+      // Bone ids may appear on <g>, <path>, <polygon>, etc.
+      for (const match of svg.matchAll(/\sid="([^"]+)"/g)) ids.add(match[1]);
     }
 
     const missing = [...ELEMENT_BY_SVG_ID.keys()].filter((id) => !ids.has(id));
