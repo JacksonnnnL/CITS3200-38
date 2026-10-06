@@ -87,7 +87,8 @@ function paintGroup(group, state) {
 }
 
 // Apply a state (or clear) to every SVG id that shares the same client
-// code as boneId — e.g. all CRA views when any cranial piece is marked.
+// code as boneId — e.g. all CRA views when any cranial piece is marked,
+// all PAR_R views when one is marked, MND/MND_L/MND_R together.
 // Updates in-memory boneStates, paints any matching groups in the
 // current segment, and persists each id.
 async function applyStateToLinkedBones(boneId, finalState) {
