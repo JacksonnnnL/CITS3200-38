@@ -15,6 +15,7 @@ import {
 // Anything in this set is skipped when walking the SVG.
 // Add any new segment root here — both skeleton pages pick it up.
 export const CONTAINER_IDS = new Set([
+    // Segment roots in skeletal_system.svg and in each per-segment file
     'pelvis',
     'cranium',
     'axial_skeleton',
@@ -24,6 +25,7 @@ export const CONTAINER_IDS = new Set([
     'left_lower_limb',
     'skeletal_system',
 
+    // Cranium sub-view roots
     'skull_anterior',
     'skull_right_lateral',
     'skull_left_lateral',
@@ -31,6 +33,7 @@ export const CONTAINER_IDS = new Set([
     'skull_inferior',
     'skull_top',
 
+    // Auditory ossicles wrappers
     'auditory_ossicles_left',
     'auditory_ossicles_right'
 ]);
