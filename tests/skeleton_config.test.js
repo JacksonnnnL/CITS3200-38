@@ -29,7 +29,7 @@ describe("isNonBoneId", () => {
         }
     });
 
-    it("includes the new wrapper ids", () => {
+    it("includes the wrapper ids added for the new SVGs", () => {
         expect(CONTAINER_IDS.has("skeletal_system")).toBe(true);
         expect(CONTAINER_IDS.has("skull_top")).toBe(true);
         expect(CONTAINER_IDS.has("auditory_ossicles_left")).toBe(true);
@@ -37,6 +37,7 @@ describe("isNonBoneId", () => {
         expect(isNonBoneId("skeletal_system")).toBe(true);
         expect(isNonBoneId("skull_top")).toBe(true);
         expect(isNonBoneId("auditory_ossicles_left")).toBe(true);
+        expect(isNonBoneId("auditory_ossicles_right")).toBe(true);
     });
 
     it("rejects internal wrappers", () => {
@@ -47,12 +48,34 @@ describe("isNonBoneId", () => {
         expect(isNonBoneId("mask2")).toBe(true);
     });
 
-    it("accepts real bone ids", () => {
+    it("accepts real bone ids (new SVG id scheme)", () => {
+        // Non-cranial, non-mandible: SVG id === client MNI code.
         expect(isNonBoneId("FEM_L")).toBe(false);
-        expect(isNonBoneId("PAR_R_post")).toBe(false);
-        expect(isNonBoneId("VC3")).toBe(false);
-        expect(isNonBoneId("RIB_L7")).toBe(false);
+        expect(isNonBoneId("FEM_R")).toBe(false);
+        expect(isNonBoneId("RIB_L1")).toBe(false);
+        expect(isNonBoneId("RIB_R1")).toBe(false);
+        expect(isNonBoneId("PEL_R")).toBe(false);
+        expect(isNonBoneId("MC1_R")).toBe(false);
+        expect(isNonBoneId("MT5_L")).toBe(false);
+        expect(isNonBoneId("CUN_L1")).toBe(false);
+        expect(isNonBoneId("PPH1_R")).toBe(false);
+        expect(isNonBoneId("DPF1_L")).toBe(false);
+        expect(isNonBoneId("STN")).toBe(false);
+        expect(isNonBoneId("SAC")).toBe(false);
+        expect(isNonBoneId("HYD")).toBe(false);
+        expect(isNonBoneId("VC1")).toBe(false);
+        expect(isNonBoneId("VC2")).toBe(false);
+
+        // Cranial views.
         expect(isNonBoneId("CRA_ant")).toBe(false);
+        expect(isNonBoneId("PAR_R_post")).toBe(false);
+        expect(isNonBoneId("TEM_L_inf")).toBe(false);
+        expect(isNonBoneId("OCC_lat_r")).toBe(false);
+
+        // Mandible views.
+        expect(isNonBoneId("MND")).toBe(false);
+        expect(isNonBoneId("MND_L")).toBe(false);
+        expect(isNonBoneId("MND_R")).toBe(false);
     });
 });
 
