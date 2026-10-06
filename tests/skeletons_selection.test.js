@@ -21,7 +21,6 @@ let allPresentButton;
 let container;
 
 beforeAll(async () => {
-
     const dom = new JSDOM(
         `<!DOCTYPE html><html><body>
             <span id="accession-display"></span>
@@ -33,9 +32,6 @@ beforeAll(async () => {
                 <button id="all-present-button" class="segment-tab" disabled></button>
             </div>
             <div id="skeleton-select-container"></div>
-            <div id="selected-info">
-                <span id="selected-zone-label"></span>
-            </div>
             <div id="details-box">
                 <button id="details-close"></button>
                 <div id="detail-bone-name"></div>
@@ -66,7 +62,6 @@ beforeAll(async () => {
 });
 
 describe("isDecorativeShape (selection)", () => {
-
     it("returns true for shapes with opacity < 1", () => {
         const dom = new JSDOM(`<svg xmlns="http://www.w3.org/2000/svg">
             <path id="p1" opacity="0.5" />
@@ -97,11 +92,9 @@ describe("isDecorativeShape (selection)", () => {
 
         expect(isDecorativeShape(doc.getElementById("p1"))).toBe(false);
     });
-
 });
 
 describe("isGhostGroup (selection)", () => {
-
     it("returns true when the group has opacity < 1 as an attribute", () => {
         const dom = new JSDOM(`<svg xmlns="http://www.w3.org/2000/svg">
             <g id="g1" opacity="0.1"></g>
@@ -130,11 +123,9 @@ describe("isGhostGroup (selection)", () => {
 
         expect(isGhostGroup(doc.getElementById("g1"))).toBe(false);
     });
-
 });
 
 describe("All Present button", () => {
-
     const GREEN = "#2e7d32";
 
     function setSegmentSvg(boneIds) {
@@ -161,19 +152,15 @@ describe("All Present button", () => {
         await new Promise((r) => setTimeout(r, 0));
 
         const alpha = container.querySelector("#bone_alpha path");
-        const beta  = container.querySelector("#bone_beta path");
+        const beta = container.querySelector("#bone_beta path");
         const gamma = container.querySelector("#bone_gamma path");
 
         expect(alpha.style.fill).toBe(GREEN);
         expect(beta.style.fill).toBe(GREEN);
         expect(gamma.style.fill).toBe(GREEN);
 
-        // --- Reviewer feedback: verify persistence, not just colouring ---
-
-        // Call-count check: all three bones must be saved.
         expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
 
-        // Argument check: at least one bone, exact shape.
         expect(setZoneStateSpy).toHaveBeenCalledWith({
             accessionId: "test-id",
             bone: "bone_alpha",
@@ -196,7 +183,7 @@ describe("All Present button", () => {
         await new Promise((r) => setTimeout(r, 0));
 
         const visible = container.querySelector("#bone_visible path");
-        const ghost   = container.querySelector("#bone_ghost path");
+        const ghost = container.querySelector("#bone_ghost path");
 
         expect(visible.style.fill).toBe(GREEN);
         expect(ghost.style.fill).not.toBe(GREEN);
@@ -212,4 +199,60 @@ describe("All Present button", () => {
         expect(allPresentButton.hasAttribute("disabled")).toBe(false);
     });
 
+    it("updates every id in a linked cranial group once", async () => {
+        setSegmentSvg(["PAR_R_post", "PAR_R_lat_r", "PAR_R_ant"]);
+        allPresentButton.disabled = false;
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(container.querySelector("#PAR_R_post path").style.fill).toBe(GREEN);
+        expect(container.querySelector("#PAR_R_lat_r path").style.fill).toBe(GREEN);
+        expect(container.querySelector("#PAR_R_ant path").style.fill).toBe(GREEN);
+
+        expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
+        expect(setZoneStateSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ bone: "PAR_R_post", state: "present-complete" })
+        );
+        expect(setZoneStateSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ bone: "PAR_R_lat_r", state: "present-complete" })
+        );
+        expect(setZoneStateSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ bone: "PAR_R_ant", state: "present-complete" })
+        );
+    });
+
+    it("also links the mandible views (MND / MND_L / MND_R)", async () => {
+        setSegmentSvg(["MND", "MND_L", "MND_R"]);
+        allPresentButton.disabled = false;
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(container.querySelector("#MND path").style.fill).toBe(GREEN);
+        expect(container.querySelector("#MND_L path").style.fill).toBe(GREEN);
+        expect(container.querySelector("#MND_R path").style.fill).toBe(GREEN);
+
+        expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
+        expect(setZoneStateSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ bone: "MND", state: "present-complete" })
+        );
+    });
+
+    it("also links the CRA lateral / anterior views", async () => {
+        setSegmentSvg(["CRA_lat_l", "CRA_lat_r", "CRA_ant"]);
+        allPresentButton.disabled = false;
+        setZoneStateSpy.mockClear();
+
+        allPresentButton.click();
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(container.querySelector("#CRA_lat_l path").style.fill).toBe(GREEN);
+        expect(container.querySelector("#CRA_lat_r path").style.fill).toBe(GREEN);
+        expect(container.querySelector("#CRA_ant path").style.fill).toBe(GREEN);
+
+        expect(setZoneStateSpy).toHaveBeenCalledTimes(3);
+    });
 });

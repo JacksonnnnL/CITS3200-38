@@ -11,7 +11,7 @@
 
     <title>Site - OsteoMap</title>
 
-    <link rel="stylesheet" href="css/style.css?v=4">
+    <link rel="stylesheet" href="css/style.css?v=9">
     <link rel="stylesheet" href="css/siteStats.css?v=1">
 </head>
 
@@ -48,12 +48,55 @@
                     SITE-12345
                 </h1>
 
-                <p
-                    id="site-location-heading"
-                    class="site-header-location"
+                <div
+                    id="site-description-display"
+                    class="site-description-display"
                 >
-                    LOCATION
-                </p>
+                    <p
+                        id="site-location-heading"
+                        class="site-header-location"
+                    >
+                        LOCATION
+                    </p>
+
+                    <button
+                        id="edit-site-description-button"
+                        class="site-description-edit-button"
+                        type="button"
+                    >
+                        Edit
+                    </button>
+                </div>
+
+                <div
+                    id="site-description-editor"
+                    class="site-description-editor"
+                    hidden
+                >
+                    <textarea
+                        id="site-description-input"
+                        aria-label="Site Description"
+                        placeholder="Enter site description"
+                    ></textarea>
+
+                    <div class="site-description-actions">
+                        <button
+                            id="cancel-site-description-button"
+                            class="site-description-action site-description-cancel"
+                            type="button"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            id="save-site-description-button"
+                            class="site-description-action site-description-save"
+                            type="button"
+                        >
+                            Save
+                        </button>
+                    </div>
+                </div>
 
             </div>
 
@@ -70,26 +113,40 @@
                         Individuals
                     </h2>
 
-                    <div class="individual-sort">
+                    <div class="age-filter">
 
-                        <svg
-                            class="sort-icon"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
+                        <button
+                            id="age-filter-button"
+                            class="age-filter-button"
+                            type="button"
+                            aria-haspopup="true"
+                            aria-expanded="false"
                         >
-                            <path
-                                d="M4 5h16l-6 7v5l-4 2v-7L4 5z"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
+                            Age
+                            <span aria-hidden="true">▾</span>
+                        </button>
 
-                        <span>
-                            Sorted: Date/Grave
-                        </span>
+                        <div
+                            id="age-filter-menu"
+                            class="age-filter-menu"
+                            role="menu"
+                        >
+                            <button type="button" role="menuitem" data-age="infant">
+                                Infant
+                            </button>
+
+                            <button type="button" role="menuitem" data-age="child">
+                                Child
+                            </button>
+
+                            <button type="button" role="menuitem" data-age="adolescent">
+                                Adolescent
+                            </button>
+
+                            <button type="button" role="menuitem" data-age="adult">
+                                Adult
+                            </button>
+                        </div>
 
                     </div>
 
@@ -198,10 +255,64 @@
 
     </div>
 
+    <div
+        id="edit-context-modal"
+        class="modal-overlay"
+    >
+
+        <div
+            class="modal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-context-title"
+        >
+
+            <h2 id="edit-context-title">
+                Edit Context / Grave
+            </h2>
+
+            <div class="form-group">
+
+                <label for="edit-context-input">
+                    Context / Grave
+                </label>
+
+                <input
+                    id="edit-context-input"
+                    type="text"
+                    placeholder="Enter context or grave"
+                    autocomplete="off"
+                >
+
+            </div>
+
+            <div class="modal-actions">
+
+                <button
+                    id="cancel-context-edit-button"
+                    class="modal-button modal-button-cancel"
+                    type="button"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    id="save-context-edit-button"
+                    class="modal-button modal-button-save"
+                    type="button"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
 
     <script
         type="module"
-        src="js/site.js"
+        src="js/site.js?v=4"
     ></script>
 
     <script
