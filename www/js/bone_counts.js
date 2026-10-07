@@ -12,17 +12,20 @@
 // changes or is deleted.
 //
 // The bone-marking pages save the SVG element id as `bone`. For
-// every non-cranial, non-mandible element the SVG id IS the client's
-// MNI code (e.g. FEM_R, RIB_R1, STN, VC1, MC3_R, PPH1_R). Cranial
+// Adult non-cranial, non-mandible elements, the SVG id IS the client's
+// MNI code (e.g. FEM_R, RIB_R1, STN, VC1, MC3_R, PPH1_R). Child
+// rib / vertebra table IDs are mapped to those same codes. Cranial
 // views all map to CRA; mandible views (MND, MND_L, MND_R) map to MND.
 // Only elements listed in ELEMENT_BY_SVG_ID are counted, which
 // matches the client's rule that just the first rib and first two
 // vertebrae go into bone counts while the remaining ribs/vertebrae are
-// recorded visually only.
+// recorded visually only. Numbered unfused parts (FEM_L2, SAC_2,
+// etc.) remain visual inventory records and are excluded from MNI.
 // ========================================
 
 import {
   PRESERVATION_STATES,
+  AGE_CATEGORIES,
   NotFoundError,
   getSiteById,
   getAccessionsBySite,
@@ -35,7 +38,9 @@ import {
 // from MNI — only Present (Complete, >=50% present) counts. Kept as a
 // list rather than a single value in case that ever needs to change
 // again; pass a different { presentStates: [...] } to override per call.
-export const PRESENT_STATES = Object.freeze([PRESERVATION_STATES.PRESENT_COMPLETE]);
+export const PRESENT_STATES = Object.freeze([
+  PRESERVATION_STATES.PRESENT_COMPLETE,
+]);
 
 export const TOP_ELEMENT_LIMIT = 5;
 
@@ -96,13 +101,17 @@ const CRANIAL_SVG_IDS = [
   "PAL_L_inf", "PAL_R_inf",
   "VOM_ant", "VOM_inf",
   "INCO_L", "INCO_R",
+
+  // Child cranial aliases; numbered unfused parts are not counted.
+  "NAS_L", "NAS_R", "OCC_L_lat_l", "OCC_R_lat_r",
 ];
 
 const MANDIBLE_SVG_IDS = ["MND", "MND_L", "MND_R"];
 
 function buildElementTable() {
   const table = new Map();
-  const add = (svgId, code, label) => table.set(svgId, Object.freeze({ code, label }));
+  const add = (svgId, code, label) =>
+    table.set(svgId, Object.freeze({ code, label }));
 
   // --- Axial (single, non-sided) ---
   add("STN", "STN", "Sternum");
@@ -110,39 +119,76 @@ function buildElementTable() {
   add("HYD", "HYD", "Hyoid");
 
   // --- Cranium + mandible ---
-  for (const svgId of CRANIAL_SVG_IDS) add(svgId, "CRA", "Cranium");
-  for (const svgId of MANDIBLE_SVG_IDS) add(svgId, "MND", "Mandible");
+  for (const svgId of CRANIAL_SVG_IDS) {
+    add(svgId, "CRA", "Cranium");
+  }
+  for (const svgId of MANDIBLE_SVG_IDS) {
+    add(svgId, "MND", "Mandible");
+  }
 
   // --- Vertebrae (only C1 and C2 count; rest are visual only) ---
   add("VC1", "VC1", "Atlas (C1)");
   add("VC2", "VC2", "Axis (C2)");
 
+  // Child table cells map to the same first-rib / C1 / C2 elements.
+  // Different representations count at most once per individual.
+  add("RT1L", "RIB_L1", "Left first rib");
+  add("RT1R", "RIB_R1", "Right first rib");
+
+  for (const id of ["C1C", "C1N"]) {
+    add(id, "VC1", "Atlas (C1)");
+  }
+  for (const id of ["C2C", "C2N"]) {
+    add(id, "VC2", "Axis (C2)");
+  }
+
   // --- Sided bones ---
   for (const side of SIDES) {
     for (const [code, name] of SIDED_BONES) {
-      add(`${code}_${side.letter}`, `${code}_${side.letter}`, `${side.label} ${name}`);
+      add(
+        `${code}_${side.letter}`,
+        `${code}_${side.letter}`,
+        `${side.label} ${name}`
+      );
     }
 
     // Pelvis (os coxae)
-    add(`PEL_${side.letter}`, `PEL_${side.letter}`, `${side.label} os coxae (pelvis)`);
+    add(
+      `PEL_${side.letter}`,
+      `PEL_${side.letter}`,
+      `${side.label} os coxae (pelvis)`
+    );
 
     // First rib only
-    add(`RIB_${side.letter}1`, `RIB_${side.letter}1`, `${side.label} first rib`);
+    add(
+      `RIB_${side.letter}1`,
+      `RIB_${side.letter}1`,
+      `${side.label} first rib`
+    );
 
     // Metacarpals 1–5
     for (let n = 1; n <= 5; n++) {
-      add(`MC${n}_${side.letter}`, `MC${n}_${side.letter}`, `${side.label} metacarpal ${n}`);
+      add(
+        `MC${n}_${side.letter}`,
+        `MC${n}_${side.letter}`,
+        `${side.label} metacarpal ${n}`
+      );
     }
 
     // Metatarsals 1–5
     for (let n = 1; n <= 5; n++) {
-      add(`MT${n}_${side.letter}`, `MT${n}_${side.letter}`, `${side.label} metatarsal ${n}`);
+      add(
+        `MT${n}_${side.letter}`,
+        `MT${n}_${side.letter}`,
+        `${side.label} metatarsal ${n}`
+      );
     }
 
     // Cuneiforms: 1 medial -> 3 lateral (CUN_R1 next to the big toe).
     for (let n = 1; n <= 3; n++) {
       const position =
         n === 1 ? "medial" : n === 2 ? "intermediate" : "lateral";
+
       add(
         `CUN_${side.letter}${n}`,
         `CUN_${side.letter}${n}`,
@@ -152,10 +198,26 @@ function buildElementTable() {
 
     // Digit 1 phalanges only — thumb (hand, PPH/DPH) and hallux (foot, PPF/DPF).
     // Both are on the client's MNI list; other digits are visual only.
-    add(`PPH1_${side.letter}`, `PPH1_${side.letter}`, `${side.label} thumb proximal phalanx`);
-    add(`DPH1_${side.letter}`, `DPH1_${side.letter}`, `${side.label} thumb distal phalanx`);
-    add(`PPF1_${side.letter}`, `PPF1_${side.letter}`, `${side.label} hallux proximal phalanx`);
-    add(`DPF1_${side.letter}`, `DPF1_${side.letter}`, `${side.label} hallux distal phalanx`);
+    add(
+      `PPH1_${side.letter}`,
+      `PPH1_${side.letter}`,
+      `${side.label} thumb proximal phalanx`
+    );
+    add(
+      `DPH1_${side.letter}`,
+      `DPH1_${side.letter}`,
+      `${side.label} thumb distal phalanx`
+    );
+    add(
+      `PPF1_${side.letter}`,
+      `PPF1_${side.letter}`,
+      `${side.label} hallux proximal phalanx`
+    );
+    add(
+      `DPF1_${side.letter}`,
+      `DPF1_${side.letter}`,
+      `${side.label} hallux distal phalanx`
+    );
   }
 
   return table;
@@ -203,18 +265,43 @@ const LINKED_VIEW_GROUPS = [
 
 const LINKED_BY_ID = (() => {
   const map = new Map();
+
   for (const group of LINKED_VIEW_GROUPS) {
     const frozen = Object.freeze([...group]);
     for (const id of group) map.set(id, frozen);
   }
+
+  return map;
+})();
+
+// Child uses the same links except for its additional occipital IDs.
+// This separate map leaves all Adult linking behaviour unchanged.
+const CHILD_LINKED_BY_ID = (() => {
+  const map = new Map(LINKED_BY_ID);
+
+  // These views use different occipital IDs in Child. Keep Adult intact.
+  const occipital = Object.freeze([
+    "OCC_L_lat_l",
+    "OCC_R_lat_r",
+  ]);
+
+  for (const id of occipital) map.set(id, occipital);
+
   return map;
 })();
 
 // SVG ids that should receive the same state as `boneId` in the
 // selection UI. Same-bone multi-view groups only; unmapped ids
-// return just themselves.
-export function linkedSvgIds(boneId) {
-  const group = LINKED_BY_ID.get(boneId);
+// (including numbered unfused parts) return just themselves.
+export function linkedSvgIds(
+  boneId,
+  ageCategory = AGE_CATEGORIES.ADULT
+) {
+  const map = ageCategory === AGE_CATEGORIES.CHILD
+    ? CHILD_LINKED_BY_ID
+    : LINKED_BY_ID;
+
+  const group = map.get(boneId);
   return group ? [...group] : [boneId];
 }
 
@@ -242,8 +329,12 @@ export function countPresentElements(
   const counts = {};
   const ignored = new Set();
 
-  const countsComplete = presentStates.includes(PRESERVATION_STATES.PRESENT_COMPLETE);
-  const countsFragmented = presentStates.includes(PRESERVATION_STATES.PRESENT_FRAGMENTED);
+  const countsComplete = presentStates.includes(
+    PRESERVATION_STATES.PRESENT_COMPLETE
+  );
+  const countsFragmented = presentStates.includes(
+    PRESERVATION_STATES.PRESENT_FRAGMENTED
+  );
 
   for (const zoneStates of zoneStatesPerIndividual) {
     const statusByCode = new Map();
@@ -301,7 +392,10 @@ function labelForCode(code) {
 
 // Highest present count becomes the site's MNI; the top elements are
 // ranked by count (ties broken by code so the order is stable).
-export function summariseElementCounts(counts, { topN = TOP_ELEMENT_LIMIT } = {}) {
+export function summariseElementCounts(
+  counts,
+  { topN = TOP_ELEMENT_LIMIT } = {}
+) {
   const ranked = Object.values(counts)
     .filter((entry) => entry.count > 0)
     .sort(
@@ -338,7 +432,9 @@ export async function getSiteBoneStats(siteId, options = {}) {
 
   const accessions = await getAccessionsBySite(siteId);
   const zoneStatesPerIndividual = await Promise.all(
-    accessions.map((accession) => getZoneStatesByAccession(accession.id))
+    accessions.map((accession) =>
+      getZoneStatesByAccession(accession.id)
+    )
   );
 
   return { siteId, ...computeBoneStats(zoneStatesPerIndividual, options) };
