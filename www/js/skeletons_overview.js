@@ -7,7 +7,10 @@ import {
 
 import {
     isNonBoneId,
-    hasRealBoneSubgroups,
+    isSelectableBoneGroup,
+    boneShapesForGroup,
+    prepareSkeletonSvg,
+    overviewFileForAge,
     folderForAge,
     STATE_COLORS
 } from './skeleton_config.js';
@@ -16,8 +19,8 @@ import {
 // Segment Configuration
 // ========================================
 
-// svgRootId = the top-level <g id> in skeletal_system.svg.
-// Differs from `id` only because the SVG uses underscores.
+// Map each page segment ID to its group ID in the overview SVG.
+// Adult and Child use the same seven segment roots.
 const SEGMENTS = [
     { id: 'cranium',     label: 'Cranium',      svgRootId: 'cranium',          available: true },
     { id: 'axial',       label: 'Axial',        svgRootId: 'axial_skeleton',   available: true },
@@ -33,20 +36,19 @@ const SVG_ROOT_TO_SEGMENT = Object.fromEntries(
 );
 
 // ========================================
-// Bbox Split & Shrink Rules
+// Segment Bounding Box Rules
 // ========================================
 
-// Cranium's bbox spans both lateral views with a big empty
-// middle, so it overlaps the upper limbs at the shoulders.
-// Split it into 2 sub-boxes with a gap in the middle.
-// axial and pelvis are shrunk so they don't steal limb taps.
+// Adjust the Adult segment boxes to reduce overlapping click areas.
+// Split the cranium box around the gap between its lateral views.
+// Shrink the axial and pelvis boxes to avoid nearby limb clicks.
 const SEGMENT_BBOX_RULES = {
     'cranium': { split: 2, shrink: 0,  splitGap: 0.30 },
     'axial':   { split: 1, shrink: 60, splitGap: 0 },
     'pelvis':  { split: 1, shrink: 40, splitGap: 0 }
 };
 
-// Padding around each bone for its invisible hit rect.
+// Add padding around each bone to make clicking easier.
 const BONE_HIT_PADDING = 4;
 
 let segmentBoxes = [];
@@ -55,12 +57,14 @@ let segmentBoxes = [];
 // Shape Helpers
 // ========================================
 
+// Treat shapes with an opacity attribute below 1 as decorative.
 export function isDecorativeShape(shape) {
     const attr = shape.getAttribute('opacity');
     if (attr !== null && parseFloat(attr) < 1) return true;
     return false;
 }
 
+// Skip faded groups based on their opacity attribute or computed style.
 export function isGhostGroup(group) {
     const attr = group.getAttribute('opacity');
     if (attr !== null && parseFloat(attr) < 1) return true;
@@ -90,6 +94,8 @@ let exportMode = false;
 // Load Data
 // ========================================
 
+// Load the individual, saved bone states and site details.
+// Display the skeleton for the individual's age category.
 async function loadData() {
     try {
         currentAccession = await getAccessionById(accessionId);
@@ -127,7 +133,8 @@ async function loadData() {
         renderDate();
 
         if (currentAccession.notes) {
-            document.getElementById('notes-description').value = currentAccession.notes;
+            document.getElementById('notes-description').value =
+                currentAccession.notes;
         }
 
         const folder = folderForAge(ageCategory);
@@ -146,6 +153,8 @@ async function loadData() {
 // Date Rendering
 // ========================================
 
+// Show the recorded date as DD/MM/YYYY, or today when no date is saved.
+// Keep the original value if it cannot be read as a valid date.
 function renderDate() {
     const dateDisplay = document.getElementById('individual-date-display');
 
@@ -170,9 +179,10 @@ function renderDate() {
 }
 
 // ========================================
-// Coming Soon (non-adult)
+// Unavailable Age Categories
 // ========================================
 
+// Show a placeholder when the selected age category has no configured assets.
 function showComingSoonMessage(age) {
     const board = document.getElementById('skeleton-board');
     const ageDisplay = age
@@ -203,6 +213,7 @@ function showComingSoonMessage(age) {
 // Navigation
 // ========================================
 
+// Open the selected segment while keeping the same individual.
 function goToSegment(segId) {
     window.location.href =
         `skeletons_selection.html?accessionId=${encodeURIComponent(accessionId)}&segment=${encodeURIComponent(segId)}`;
@@ -212,34 +223,41 @@ function goToSegment(segId) {
 // Load Skeleton Board
 // ========================================
 
+// Load the overview SVG, restore colours and prepare segment navigation.
 async function loadSkeletonBoard(folder) {
     const board = document.getElementById('skeleton-board');
     board.innerHTML = '';
 
+    const overviewFile = overviewFileForAge(ageCategory);
+
     try {
-        const response = await fetch(`assets/skeletons/${folder}/skeletal_system.svg`);
+        const response = await fetch(
+            `assets/skeletons/${folder}/${overviewFile}`
+        );
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
+
         const svgText = await response.text();
         board.innerHTML = svgText;
+        prepareSkeletonSvg(board, ageCategory);
 
         applyBoneColors(board);
         injectBoneHitZones(board);
         cacheSegmentBoxes(board);
         attachSegmentClickHandler(board);
 
-        // Start centred so the user doesn't land on the top-left corner.
+        // Centre the board after the SVG has been added.
         scrollBoardToCentre(board);
     } catch (error) {
-        console.error('Failed to load skeletal_system.svg:', error);
+        console.error('Failed to load overview SVG:', overviewFile, error);
 
         board.innerHTML = `
             <div class="skeleton-placeholder">
                 <span class="icon">🦴</span>
                 Could not load skeleton.<br>
                 <span style="font-size:14px;color:var(--text-light);">
-                    Make sure skeletal_system.svg is in assets/skeletons/${folder}/
+                    Make sure ${overviewFile} is in assets/skeletons/${folder}/
                 </span>
             </div>
         `;
@@ -250,9 +268,8 @@ async function loadSkeletonBoard(folder) {
 // Inject Bone Hit Zones
 // ========================================
 
-// Inserts an invisible padded <rect> as the first child of every
-// real bone group. pointer-events:all makes it catch taps that
-// land a few px off the bone itself.
+// Add an invisible padded rectangle to each selectable bone group.
+// This extends the click area slightly beyond the visible bone.
 function injectBoneHitZones(board) {
     const svgRoot = board.querySelector('svg');
     if (!svgRoot) return;
@@ -265,7 +282,7 @@ function injectBoneHitZones(board) {
         if (!id) return;
         if (isNonBoneId(id)) return;
         if (isGhostGroup(group)) return;
-        if (hasRealBoneSubgroups(group)) return;
+        if (!isSelectableBoneGroup(group, ageCategory)) return;
 
         if (group.querySelector(':scope > rect[data-hit-zone]')) return;
 
@@ -296,9 +313,10 @@ function injectBoneHitZones(board) {
 }
 
 // ========================================
-// Cache Segment Bboxes
+// Cache Segment Bounding Boxes
 // ========================================
 
+// Store segment boxes for clicks that do not reach a segment group.
 function cacheSegmentBoxes(board) {
     segmentBoxes = [];
 
@@ -306,7 +324,9 @@ function cacheSegmentBoxes(board) {
     if (!svgRoot) return;
 
     for (const seg of SEGMENTS) {
-        const group = svgRoot.querySelector(`#${CSS.escape(seg.svgRootId)}`);
+        const group = svgRoot.querySelector(
+            `#${CSS.escape(seg.svgRootId)}`
+        );
         if (!group) continue;
 
         let bbox;
@@ -317,7 +337,14 @@ function cacheSegmentBoxes(board) {
             continue;
         }
 
-        const rule = SEGMENT_BBOX_RULES[seg.id] || { split: 1, shrink: 0, splitGap: 0 };
+        // Keep the original split and shrink rules for Adult.
+        // Child uses full segment boxes because its layout is different.
+        // Direct bone clicks still follow the nearest segment root.
+        const ageRule = folderForAge(ageCategory) === 'child'
+            ? null
+            : SEGMENT_BBOX_RULES[seg.id];
+
+        const rule = ageRule || { split: 1, shrink: 0, splitGap: 0 };
 
         const s = rule.shrink || 0;
         const x = bbox.x + s;
@@ -332,6 +359,7 @@ function cacheSegmentBoxes(board) {
             const usable = w * (1 - gapFrac);
             const subW = usable / rule.split;
             const gapW = w - usable;
+
             for (let i = 0; i < rule.split; i++) {
                 segmentBoxes.push({
                     id: seg.id,
@@ -349,6 +377,7 @@ function cacheSegmentBoxes(board) {
 // Screen to SVG Coordinates
 // ========================================
 
+// Convert the click position from screen coordinates to SVG coordinates.
 function screenToSvg(svgRoot, clientX, clientY) {
     const pt = svgRoot.createSVGPoint();
     pt.x = clientX;
@@ -364,10 +393,9 @@ function screenToSvg(svgRoot, clientX, clientY) {
 // Segment Click Handler
 // ========================================
 
-// Step 1: bones (and hit rects) win — walk up the DOM to the
-//         nearest segment root.
-// Step 2: fallback — pick the segment bbox containing the tap,
-//         choosing the closest centre when several overlap.
+// First, find the nearest segment root above the clicked element.
+// Otherwise, use the segment box containing the click.
+// If boxes overlap, choose the one with the closest centre.
 function attachSegmentClickHandler(board) {
     const svgRoot = board.querySelector('svg');
     if (!svgRoot) return;
@@ -376,9 +404,11 @@ function attachSegmentClickHandler(board) {
 
     svgRoot.addEventListener('click', (event) => {
         let node = event.target;
+
         while (node && node !== svgRoot) {
             if (node.tagName === 'g' && node.id) {
                 const segId = SVG_ROOT_TO_SEGMENT[node.id.trim()];
+
                 if (segId) {
                     event.stopPropagation();
                     goToSegment(segId);
@@ -390,7 +420,11 @@ function attachSegmentClickHandler(board) {
 
         if (segmentBoxes.length === 0) return;
 
-        const svgPt = screenToSvg(svgRoot, event.clientX, event.clientY);
+        const svgPt = screenToSvg(
+            svgRoot,
+            event.clientX,
+            event.clientY
+        );
         if (!svgPt) return;
 
         const candidates = segmentBoxes.filter(box => {
@@ -404,12 +438,14 @@ function attachSegmentClickHandler(board) {
 
         let best = null;
         let bestDist = Infinity;
+
         for (const box of candidates) {
             const cx = box.x + box.w / 2;
             const cy = box.y + box.h / 2;
             const dx = svgPt.x - cx;
             const dy = svgPt.y - cy;
             const d = dx * dx + dy * dy;
+
             if (d < bestDist) {
                 bestDist = d;
                 best = box;
@@ -427,6 +463,7 @@ function attachSegmentClickHandler(board) {
 // Centre Board On Load
 // ========================================
 
+// Centre the scroll position once the browser can measure the SVG.
 function scrollBoardToCentre(board) {
     requestAnimationFrame(() => {
         const contentW = board.scrollWidth;
@@ -445,19 +482,20 @@ function scrollBoardToCentre(board) {
 // Apply Bone State Colours
 // ========================================
 
+// Restore saved colours on each bone's shapes.
+// Leave decorative shapes and invisible click areas unchanged.
 function applyBoneColors(scope) {
     scope.querySelectorAll('g[id]').forEach(group => {
         const elementId = group.id.trim();
 
         if (!elementId) return;
         if (isNonBoneId(elementId)) return;
-        if (hasRealBoneSubgroups(group)) return;
+        if (!isSelectableBoneGroup(group, ageCategory)) return;
 
         const state = boneStates[elementId];
         if (!state || !STATE_COLORS[state]) return;
 
-        group
-            .querySelectorAll('path, polygon, circle, ellipse, rect')
+        boneShapesForGroup(group, ageCategory)
             .forEach(shape => {
                 if (shape.hasAttribute('data-hit-zone')) return;
                 if (isDecorativeShape(shape)) return;
@@ -470,7 +508,7 @@ function applyBoneColors(scope) {
 // Expand Button
 // ========================================
 
-// Inert placeholder — navigation is now via segment taps.
+// Keep the expand-button placeholder; segments open through skeleton clicks.
 document.getElementById('expand-btn')?.addEventListener('click', () => {
     if (!exportMode) {
         return;
@@ -481,6 +519,7 @@ document.getElementById('expand-btn')?.addEventListener('click', () => {
 // Notes Auto-Save
 // ========================================
 
+// Save trimmed notes when the field's change event fires.
 const notesInput = document.getElementById('notes-description');
 
 notesInput.addEventListener('change', async function() {
@@ -495,4 +534,5 @@ notesInput.addEventListener('change', async function() {
 // Start
 // ========================================
 
+// Load the overview after the page elements are available.
 document.addEventListener('DOMContentLoaded', loadData);
