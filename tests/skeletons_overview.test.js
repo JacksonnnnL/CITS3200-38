@@ -4,12 +4,12 @@ import { readFileSync } from "node:fs";
 
 const mocks = vi.hoisted(() => ({
     individual: {
-        id: "test-id",
-        accessionNumber: "BODY-1",
-        siteId: "site-1",
+        id: "testid",
+        accessionNumber: "ACC1",
+        siteId: "siteid1",
         ageCategory: "child",
-        date: "2026-10-06",
-        notes: "Recorded notes"
+        date: "2026-01-01",
+        notes: "notes1"
     },
     rows: [],
     getAccessionById: vi.fn(),
@@ -25,6 +25,15 @@ vi.mock("../www/js/data.js", async (importOriginal) => ({
     getZoneStatesByAccession: mocks.getZoneStatesByAccession,
     updateAccession: mocks.updateAccession
 }));
+
+const AGES = ["adult", "child", "infant", "adolescent"];
+const PART_AGES = ["child", "infant", "adolescent"];
+const OVERVIEW_FILES = [
+    ["adult", "skeletal_system.svg"],
+    ["child", "child_skeletal_system.svg"],
+    ["infant", "infant_skeletal_system.svg"],
+    ["adolescent", "adolescent_skeletal_system.svg"]
+];
 
 const GREEN = "#2e7d32";
 const ORANGE = "#ed6c02";
@@ -86,7 +95,7 @@ async function openPage(
         <div id="skeleton-board"></div>
         <button id="expand-btn"></button>
     </body></html>`, {
-        url: "http://localhost/skeletons_overview.html?accessionId=test-id"
+        url: "http://localhost/skeletons_overview.html?accessionId=testid"
     });
 
     pageLocation = {
@@ -149,7 +158,7 @@ beforeEach(() => {
     }));
 
     mocks.getSiteById.mockResolvedValue({
-        id: "site-1",
+        id: "siteid1",
         code: "SITE-1"
     });
 
@@ -237,32 +246,29 @@ describe("isGhostGroup (overview)", () => {
 });
 
 describe("overview loading", () => {
-    it.each([
-        ["adult", "skeletal_system.svg"],
-        ["child", "child_skeletal_system.svg"]
-    ])("loads the correct overview file for %s", async (age, file) => {
+    it.each(OVERVIEW_FILES)("loads the correct overview file for %s", async (age, file) => {
         await openPage(age);
 
         expect(fetchMock).toHaveBeenCalledWith(
             `assets/skeletons/${age}/${file}`
         );
-        expect(mocks.getZoneStatesByAccession).toHaveBeenCalledWith("test-id");
-        expect(element("accession-display").textContent).toBe("BODY-1");
+        expect(mocks.getZoneStatesByAccession).toHaveBeenCalledWith("testid");
+        expect(element("accession-display").textContent).toBe("ACC1");
         expect(element("site-display").textContent).toBe("SITE-1");
     });
 });
 
 describe("saved overview colours", () => {
-    it.each([
-        ["present-complete", GREEN],
-        ["present-fragmented", ORANGE],
-        ["absent", GREY]
-    ])(
-        "restores %s on a Child part without changing its parent",
-        async (state, colour) => {
+    it.each(PART_AGES.flatMap(age => [
+        [age, "present-complete", GREEN],
+        [age, "present-fragmented", ORANGE],
+        [age, "absent", GREY]
+    ]))(
+        "restores %s %s on a part without changing its parent",
+        async (age, state, colour) => {
             mocks.rows = [{ bone: "FEM_L2", state }];
 
-            await openPage("child", svg(`
+            await openPage(age, svg(`
                 <g id="left_lower_limb">
                     <g id="FEM_L">
                         <g id="Vector_1"><path id="own" /></g>
@@ -276,13 +282,13 @@ describe("saved overview colours", () => {
         }
     );
 
-    it("keeps different saved colours on Child parents and parts", async () => {
+    it.each(PART_AGES)("keeps different saved colours on %s parents and parts", async age => {
         mocks.rows = [
             { bone: "FEM_L", state: "present-complete" },
             { bone: "FEM_L2", state: "absent" }
         ];
 
-        await openPage("child", svg(`
+        await openPage(age, svg(`
             <g id="left_lower_limb">
                 <g id="FEM_L">
                     <g id="Vector_1">
@@ -347,8 +353,8 @@ describe("saved overview colours", () => {
 });
 
 describe("overview hit zones", () => {
-    it("adds separate hit zones for Child parent bones and parts", async () => {
-        await openPage("child", svg(`
+    it.each(PART_AGES)("adds separate hit zones for %s parents and parts", async age => {
+        await openPage(age, svg(`
             <g id="left_lower_limb">
                 <g id="FEM_L">
                     <g id="Vector_1"><path /></g>
@@ -398,7 +404,7 @@ describe("overview hit zones", () => {
 });
 
 describe("overview navigation", () => {
-    it.each(["adult", "child"])(
+    it.each(AGES)(
         "opens each segment with the same individual for %s",
         async age => {
             await openPage(age, svg(
@@ -415,15 +421,15 @@ describe("overview navigation", () => {
                 expect(destination().pathname)
                     .toBe("/skeletons_selection.html");
                 expect(destination().searchParams.get("accessionId"))
-                    .toBe("test-id");
+                    .toBe("testid");
                 expect(destination().searchParams.get("segment"))
                     .toBe(segment);
             }
         }
     );
 
-    it("uses the nearest segment root for a nested Child part", async () => {
-        await openPage("child", svg(`
+    it.each(PART_AGES)("uses the nearest segment root for a nested %s part", async age => {
+        await openPage(age, svg(`
             <g id="left_lower_limb">
                 <g id="FEM_L">
                     <path />
@@ -448,20 +454,20 @@ describe("overview navigation", () => {
         expect(destination().searchParams.get("segment")).toBe("pelvis");
     });
 
-    it.each([
-        ["pelvis", "pelvis", 20, 20],
-        ["axial", "axial_skeleton", 20, 20],
-        ["cranium", "cranium", 100, 100]
-    ])(
-        "uses the full Child %s box and keeps Adult box rules",
-        async (segment, root, x, y) => {
+    it.each(PART_AGES.flatMap(age => [
+        [age, "pelvis", "pelvis", 20, 20],
+        [age, "axial", "axial_skeleton", 20, 20],
+        [age, "cranium", "cranium", 100, 100]
+    ]))(
+        "uses the full %s %s box and keeps Adult box rules",
+        async (age, segment, root, x, y) => {
             const content = svg(`
                 <g id="${root}" data-bbox="0 0 200 200">
                     <g id="bone"><path /></g>
                 </g>
             `);
 
-            await openPage("child", content);
+            await openPage(age, content);
 
             click(document.querySelector("#skeleton-board svg"), x, y);
 
@@ -476,26 +482,24 @@ describe("overview navigation", () => {
         }
     );
 
-    it.each(["adult", "child"])(
+    it.each(AGES)(
         "returns to the same site for %s",
         async age => {
             await openPage(age);
             element("back-to-site-button").click();
 
             expect(destination().pathname).toBe("/site.html");
-            expect(destination().searchParams.get("siteId")).toBe("site-1");
+            expect(destination().searchParams.get("siteId")).toBe("siteid1");
         }
     );
 });
 
 describe("supplied overview assets", () => {
-    it.each([
-        ["adult", "skeletal_system.svg"],
-        ["child", "child_skeletal_system.svg"]
-    ])(
+    it.each(OVERVIEW_FILES)(
         "loads the supplied %s overview and restores a saved pelvis state",
         async (age, file) => {
-            mocks.rows = [{ bone: "PEL_L", state: "present-complete" }];
+            const bone = age === "infant" ? "PEL_L1" : "PEL_L";
+            mocks.rows = [{ bone, state: "present-complete" }];
 
             const content = readFileSync(
                 new URL(
@@ -511,12 +515,63 @@ describe("supplied overview assets", () => {
                 expect(element(root)).not.toBe(null);
             }
 
-            expect(shape("PEL_L").style.fill).toBe(GREEN);
+            expect(shape(bone).style.fill).toBe(GREEN);
 
-            click(shape("PEL_L"));
+            click(shape(bone));
 
             expect(destination().searchParams.get("segment"))
                 .toBe("pelvis");
+        }
+    );
+});
+
+
+describe("updated overview groups", () => {
+    it.each([
+        ["infant", "infant_skeletal_system.svg", "axial", [
+            ["ST_MAN", "present-complete", GREEN],
+            ["ST_STE", "absent", GREY],
+            ["C2_C1", "present-fragmented", ORANGE],
+            ["C2_C2", "present-complete", GREEN]
+        ]],
+        ["adolescent", "adolescent_skeletal_system.svg", "cranium", [
+            ["CRA", "present-complete", GREEN],
+            ["NAS_L_ant", "present-fragmented", ORANGE],
+            ["NAS_R_ant", "absent", GREY],
+            ["MAX_R_inf", "present-complete", GREEN]
+        ]]
+    ])(
+        "restores separate states on the corrected %s overview groups",
+        async (age, file, segment, rows) => {
+            mocks.rows = rows.map(([bone, state]) => ({ bone, state }));
+
+            const content = readFileSync(
+                new URL(
+                    `../www/assets/skeletons/${age}/${file}`,
+                    import.meta.url
+                ),
+                "utf8"
+            );
+
+            await openPage(age, content);
+
+            for (const [id, , colour] of rows) {
+                expect(element(id).localName).toBe("g");
+                expect(shape(id).style.fill).toBe(colour);
+                expect(
+                    element(id).querySelector(':scope > rect[data-hit-zone]')
+                ).not.toBe(null);
+
+                click(shape(id));
+
+                expect(destination().searchParams.get("segment")).toBe(segment);
+            }
+
+            if (age === "infant") {
+                expect(element("C2_C")).toBe(null);
+            } else {
+                expect(element("NAS")).toBe(null);
+            }
         }
     );
 });
