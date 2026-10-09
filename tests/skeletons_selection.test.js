@@ -4,10 +4,12 @@ import { readFileSync } from "node:fs";
 
 const mocks = vi.hoisted(() => ({
     individual: {
-        id: "test-id",
-        accessionNumber: "BODY-1",
-        siteId: "site-1",
-        ageCategory: "child"
+        id: "testid",
+        accessionNumber: "ACC1",
+        siteId: "siteid1",
+        ageCategory: "child",
+        date: "2026-01-01",
+        notes: "notes1"
     },
     rows: new Map(),
     getAccessionById: vi.fn(),
@@ -25,6 +27,9 @@ vi.mock("../www/js/data.js", async (importOriginal) => ({
     setZoneState: mocks.setZoneState,
     clearZoneState: mocks.clearZoneState
 }));
+
+const AGES = ["adult", "child", "infant", "adolescent"];
+const PART_AGES = ["child", "infant", "adolescent"];
 
 const GREEN = "#2e7d32";
 const ORANGE = "#ed6c02";
@@ -79,6 +84,35 @@ async function markAll() {
     });
 }
 
+function touch(type, points, target = element("skeleton-select-container")) {
+    const event = new dom.window.Event(type, {
+        bubbles: true,
+        cancelable: true
+    });
+    Object.defineProperty(event, "touches", {
+        value: points.map(([identifier, clientX, clientY]) => ({
+            identifier,
+            clientX,
+            clientY
+        }))
+    });
+    target.dispatchEvent(event);
+    return event;
+}
+
+function pinch(multiplier) {
+    touch("touchstart", [[1, 150, 150], [2, 250, 150]]);
+    touch("touchmove", [
+        [1, 200 - 50 * multiplier, 150],
+        [2, 200 + 50 * multiplier, 150]
+    ]);
+    touch("touchend", []);
+}
+
+function drawing() {
+    return document.querySelector("#skeleton-select-container svg");
+}
+
 async function openPage(
     age = "child",
     segment = "cranium",
@@ -110,7 +144,7 @@ async function openPage(
             </div>
         </body></html>`,
         {
-            url: `http://localhost/skeletons_selection.html?accessionId=test-id&segment=${segment}`
+            url: `http://localhost/skeletons_selection.html?accessionId=testid&segment=${segment}`
         }
     );
 
@@ -131,6 +165,34 @@ async function openPage(
     );
     vi.stubGlobal("CSS", { escape: value => value });
     vi.stubGlobal("alert", vi.fn());
+
+    const viewer = element("skeleton-select-container");
+    Object.defineProperties(viewer, {
+        clientWidth: { configurable: true, value: 400 },
+        clientHeight: { configurable: true, value: 300 }
+    });
+    viewer.getBoundingClientRect = () => ({
+        x: 0, y: 0, left: 0, top: 0,
+        right: 400, bottom: 300, width: 400, height: 300
+    });
+
+    for (const [property, dimension, viewport] of [
+        ["scrollLeft", "width", 400],
+        ["scrollTop", "height", 300]
+    ]) {
+        let offset = 0;
+        Object.defineProperty(viewer, property, {
+            configurable: true,
+            get: () => offset,
+            set: value => {
+                const stage = viewer.querySelector(".skeleton-zoom-stage");
+                const maximum = Math.max(0,
+                    (parseFloat(stage?.style[dimension]) || viewport) - viewport
+                );
+                offset = Math.max(0, Math.min(maximum, value));
+            }
+        });
+    }
 
     fetchMock = vi.fn(async () => ({
         ok: true,
@@ -155,7 +217,7 @@ beforeEach(() => {
     }));
 
     mocks.getSiteById.mockResolvedValue({
-        id: "site-1",
+        id: "siteid1",
         code: "SITE-1"
     });
 
@@ -200,12 +262,12 @@ describe("selection shape helpers", () => {
 });
 
 describe("segment loading", () => {
-    it.each(["adult", "child"])(
+    it.each(AGES)(
         "loads all seven %s segment files",
         async age => {
             await openPage(age);
 
-            expect(element("accession-display").textContent).toBe("BODY-1");
+            expect(element("accession-display").textContent).toBe("ACC1");
             expect(element("site-display").textContent).toBe("SITE-1");
             expect(document.querySelectorAll("#segment-tabs button")).toHaveLength(7);
 
@@ -232,7 +294,7 @@ describe("segment loading", () => {
 });
 
 describe("selection navigation", () => {
-    it.each(["adult", "child"])(
+    it.each(AGES)(
         "opens the requested segment for %s",
         async age => {
             await openPage(age, "pelvis");
@@ -244,6 +306,7 @@ describe("selection navigation", () => {
                 .toBe("pelvis");
             expect(element("selected-segment-name").textContent)
                 .toBe("Selected: Pelvis");
+            expect(element("skeleton-select-container").dataset.age).toBe(age);
             expect(
                 document.querySelector(
                     '#segment-tabs [data-segment="pelvis"]'
@@ -262,7 +325,7 @@ describe("selection navigation", () => {
             .toBe("cranium");
     });
 
-    it.each(["adult", "child"])(
+    it.each(AGES)(
         "keeps the same individual when returning to overview for %s",
         async age => {
             await openPage(age);
@@ -275,14 +338,14 @@ describe("selection navigation", () => {
 
             expect(destination.pathname).toBe("/skeletons_overview.html");
             expect(destination.searchParams.get("accessionId"))
-                .toBe("test-id");
+                .toBe("testid");
         }
     );
 
-    it("closes bone details when switching segments and restores the state on return", async () => {
+    it.each(PART_AGES)("closes %s bone details when switching segments and restores the state on return", async age => {
         const originalSvg = bones(["FEM_L"]);
 
-        await openPage("child", "left-lower", originalSvg);
+        await openPage(age, "left-lower", originalSvg);
 
         element("FEM_L").dispatchEvent(
             new window.MouseEvent("click", { bubbles: true })
@@ -292,7 +355,7 @@ describe("selection navigation", () => {
 
         await vi.waitFor(() => {
             expect(element("detail-status-text").textContent)
-                .toBe("Fragmented ◐");
+                .toBe("Fragmented");
         });
 
         fetchMock.mockImplementation(async path => ({
@@ -333,7 +396,7 @@ describe("selection navigation", () => {
     });
 });
 
-describe("Child bone selection", () => {
+describe.each(PART_AGES)("%s bone selection", age => {
     const nested = svg(`
         <g id="left_lower_limb">
             <g id="FEM_L">
@@ -344,13 +407,13 @@ describe("Child bone selection", () => {
     `);
 
     it.each([
-        ["present-complete", GREEN, "Present ✅"],
-        ["present-fragmented", ORANGE, "Fragmented ◐"],
-        ["absent", GREY, "Absent ✗"]
+        ["present-complete", GREEN, "Present"],
+        ["present-fragmented", ORANGE, "Fragmented"],
+        ["absent", GREY, "Absent"]
     ])(
         "saves %s for a part without changing its parent",
         async (state, colour, label) => {
-            await openPage("child", "left-lower", nested);
+            await openPage(age, "left-lower", nested);
 
             shape("FEM_L2").dispatchEvent(
                 new window.MouseEvent("click", { bubbles: true })
@@ -362,7 +425,7 @@ describe("Child bone selection", () => {
 
             await vi.waitFor(() => {
                 expect(mocks.setZoneState).toHaveBeenCalledWith({
-                    accessionId: "test-id",
+                    accessionId: "testid",
                     bone: "FEM_L2",
                     side: "",
                     zone: "FEM_L2",
@@ -381,7 +444,7 @@ describe("Child bone selection", () => {
     );
 
     it("changes and hovers the parent without changing the nested part", async () => {
-        await openPage("child", "left-lower", nested);
+        await openPage(age, "left-lower", nested);
 
         element("parent-shape").dispatchEvent(
             new window.MouseEvent("mouseenter")
@@ -411,7 +474,7 @@ describe("Child bone selection", () => {
     });
 
     it("clears the state when the same button is chosen again", async () => {
-        await openPage();
+        await openPage(age);
 
         element("FEM_L").dispatchEvent(
             new window.MouseEvent("click", { bubbles: true })
@@ -427,7 +490,7 @@ describe("Child bone selection", () => {
 
         await vi.waitFor(() => {
             expect(mocks.clearZoneState).toHaveBeenCalledWith({
-                accessionId: "test-id",
+                accessionId: "testid",
                 bone: "FEM_L",
                 side: "",
                 zone: "FEM_L"
@@ -445,7 +508,7 @@ describe("Child bone selection", () => {
     });
 
     it("restores independent states after reopening the page", async () => {
-        await openPage("child", "left-lower", nested);
+        await openPage(age, "left-lower", nested);
 
         element("FEM_L2").dispatchEvent(
             new window.MouseEvent("click", { bubbles: true })
@@ -457,7 +520,7 @@ describe("Child bone selection", () => {
             expect(mocks.rows.has("FEM_L2")).toBe(true);
         });
 
-        await openPage("child", "left-lower", nested);
+        await openPage(age, "left-lower", nested);
 
         expect(element("part-shape").style.fill).toBe(GREY);
         expect(element("parent-shape").style.fill).toBe("transparent");
@@ -473,12 +536,15 @@ describe("Child bone selection", () => {
             state: "absent"
         });
 
-        await openPage("child", "left-lower", nested);
+        await openPage(age, "left-lower", nested);
 
         expect(element("parent-shape").style.fill).toBe(GREEN);
         expect(element("part-shape").style.fill).toBe(GREY);
     });
 
+});
+
+describe("Child SVG preparation", () => {
     it("wraps the Child RSU path and lets it be selected and saved", async () => {
         await openPage(
             "child",
@@ -536,7 +602,7 @@ describe("linked views and All Present", () => {
         expect(shape("OCC_R_lat_r").style.fill).toBe("transparent");
     });
 
-    it.each(["adult", "child"])(
+    it.each(["adult", "child", "adolescent"])(
         "marks shared linked groups once per ID for %s",
         async age => {
             const ids = [
@@ -548,7 +614,7 @@ describe("linked views and All Present", () => {
                 "MND_R",
                 "CRA_lat_l",
                 "CRA_lat_r",
-                "CRA_ant"
+                age === "adolescent" ? "CRA" : "CRA_ant"
             ];
 
             await openPage(age, "cranium", bones(ids));
@@ -587,9 +653,9 @@ describe("linked views and All Present", () => {
         expect(shape("OCC_R_lat_r").style.fill).toBe("transparent");
     });
 
-    it("marks Child parents and parts separately and skips faded or decorative shapes", async () => {
+    it.each(PART_AGES)("marks %s parents and parts separately and skips faded or decorative shapes", async age => {
         await openPage(
-            "child",
+            age,
             "left-lower",
             svg(`
                 <g id="left_lower_limb">
@@ -626,7 +692,7 @@ describe("linked views and All Present", () => {
         await markAll();
 
         expect(element("detail-status-text").textContent)
-            .toBe("Present ✅");
+            .toBe("Present");
     });
 
     it("marks the Child occipital pair once per linked ID", async () => {
@@ -668,28 +734,309 @@ describe("linked views and All Present", () => {
     });
 });
 
-describe("supplied Child segments", () => {
-    it.each(SEGMENTS)(
-        "loads %s and saves selectable bones from the supplied SVG",
-        async (id, file) => {
+describe("supplied segments", () => {
+    it.each(AGES.flatMap(age => SEGMENTS.map(([id, file]) => [age, id, file])))(
+        "loads %s %s and saves selectable bones from the supplied SVG",
+        async (age, id, file) => {
             const content = readFileSync(
                 new URL(
-                    `../www/assets/skeletons/child/${file}`,
+                    `../www/assets/skeletons/${age}/${file}`,
                     import.meta.url
                 ),
                 "utf8"
             );
 
-            await openPage("child", id, content);
+            await openPage(age, id, content);
+
+            const fittedWidth = parseFloat(drawing().style.width);
+            const fittedHeight = parseFloat(drawing().style.height);
+            expect(element("reset-zoom-button").disabled).toBe(false);
+            expect(fittedWidth).toBeGreaterThan(0);
+            expect(fittedHeight).toBeGreaterThan(0);
+            expect(Number(fittedWidth.toFixed(1))).toBeLessThanOrEqual(400);
+            expect(Number(fittedHeight.toFixed(1))).toBeLessThanOrEqual(300);
+
+            pinch(2);
+            expect(parseFloat(drawing().style.width)).toBeCloseTo(fittedWidth * 2);
+            expect(parseFloat(drawing().style.height)).toBeCloseTo(fittedHeight * 2);
+            expect(mocks.setZoneState).not.toHaveBeenCalled();
+
+            element("reset-zoom-button").click();
+            expect(parseFloat(drawing().style.width)).toBeCloseTo(fittedWidth);
+            expect(parseFloat(drawing().style.height)).toBeCloseTo(fittedHeight);
+
             await markAll();
 
-            expect(mocks.setZoneState.mock.calls.length)
-                .toBeGreaterThan(0);
+            expect(mocks.setZoneState.mock.calls.length).toBeGreaterThan(0);
             expect(
                 mocks.setZoneState.mock.calls.every(
                     ([row]) => row.state === "present-complete"
                 )
             ).toBe(true);
+
+            const savedIds = mocks.setZoneState.mock.calls.map(([row]) => row.bone);
+            expect(new Set(savedIds).size).toBe(savedIds.length);
+
+            if (age === "adolescent" && id === "cranium") {
+                for (const bone of savedIds) {
+                    expect(element(bone)).not.toBe(null);
+                }
+                for (const bone of ["CRA", "NAS_L_ant", "NAS_R_ant", "MAX_R_inf"]) {
+                    expect(savedIds).toContain(bone);
+                    expect(shape(bone).style.fill).toBe(GREEN);
+                }
+                expect(savedIds).not.toContain("NAS");
+                expect(savedIds).not.toContain("CRA_ant");
+            }
+
+            if (age === "infant" && id === "axial") {
+                for (const bone of ["ST_MAN", "ST_STE", "C2_C1", "C2_C2"]) {
+                    expect(savedIds).toContain(bone);
+                    expect(shape(bone).style.fill).toBe(GREEN);
+                }
+                expect(savedIds).not.toContain("C2_C");
+            }
         }
     );
+});
+
+describe("Infant and Adolescent linked views", () => {
+    it.each([
+        ["infant", ["TEM_L_ENDO", "TEM_L_EXO"], "TEM_R_ENDO"],
+        ["infant", ["TEM_R_ENDO", "TEM_R_EXO"], "TEM_L_ENDO"],
+        ["adolescent", ["CRA_lat_l", "CRA_lat_r", "CRA"], "PAR_L_ant"],
+        ["adolescent", ["NAS_L_lat_l", "NAS_L_ant"], "NAS_R_ant"],
+        ["adolescent", ["NAS_R_lat_r", "NAS_R_ant"], "NAS_L_ant"],
+        ["adolescent", ["MAX_R_lat_r", "MAX_R_inf", "MAX_R_ant"], "MAX_L_ant"]
+    ])(
+        "highlights, saves, restores and clears %s views %j together",
+        async (age, ids, other) => {
+            const content = bones([...ids, other]);
+            await openPage(age, "cranium", content);
+
+            element(ids[0]).dispatchEvent(
+                new window.MouseEvent("click", { bubbles: true })
+            );
+
+            for (const id of ids) {
+                expect(shape(id).style.stroke).toBe(HIGHLIGHT);
+            }
+            expect(shape(other).style.stroke).toBe("");
+
+            chooseState("present-fragmented");
+
+            await vi.waitFor(() => {
+                expect(element("detail-status-text").textContent)
+                    .toBe("Fragmented");
+            });
+
+            expect(mocks.setZoneState).toHaveBeenCalledTimes(ids.length);
+            for (const id of ids) {
+                expect(mocks.rows.get(id).state).toBe("present-fragmented");
+                expect(shape(id).style.fill).toBe(ORANGE);
+            }
+            expect(mocks.rows.has(other)).toBe(false);
+
+            await openPage(age, "cranium", content);
+
+            for (const id of ids) {
+                expect(shape(id).style.fill).toBe(ORANGE);
+            }
+
+            element(ids[0]).dispatchEvent(
+                new window.MouseEvent("click", { bubbles: true })
+            );
+            chooseState("present-fragmented");
+
+            await vi.waitFor(() => {
+                expect(element("detail-status-text").textContent).toBe("Unmarked");
+            });
+
+            expect(mocks.clearZoneState).toHaveBeenCalledTimes(ids.length);
+            for (const id of ids) {
+                expect(mocks.rows.has(id)).toBe(false);
+                expect(shape(id).style.fill).toBe("transparent");
+            }
+            expect(shape(other).style.fill).toBe("transparent");
+        }
+    );
+
+    it.each(["MAN_L", "MAN_R"])(
+        "keeps Infant mandible part %s independent",
+        async id => {
+            await openPage("infant", "cranium", bones(["MAN_L", "MAN_R"]));
+
+            element(id).dispatchEvent(
+                new window.MouseEvent("click", { bubbles: true })
+            );
+            chooseState("present-complete");
+
+            await vi.waitFor(() => {
+                expect(element("detail-status-text").textContent).toBe("Present");
+            });
+
+            expect(mocks.setZoneState).toHaveBeenCalledTimes(1);
+            const other = id === "MAN_L" ? "MAN_R" : "MAN_L";
+            expect(shape(other).style.fill).toBe("transparent");
+        }
+    );
+});
+
+describe("updated Infant axial groups", () => {
+    it.each([
+        ["ST_MAN", "present-complete", GREEN],
+        ["ST_STE", "absent", GREY],
+        ["C2_C1", "present-fragmented", ORANGE],
+        ["C2_C2", "present-complete", GREEN]
+    ])(
+        "selects, saves and restores %s independently",
+        async (id, state, colour) => {
+            const content = readFileSync(
+                new URL(
+                    "../www/assets/skeletons/infant/axial_skeleton.svg",
+                    import.meta.url
+                ),
+                "utf8"
+            );
+
+            await openPage("infant", "axial", content);
+
+            expect(element(id).localName).toBe("g");
+            shape(id).dispatchEvent(
+                new window.MouseEvent("click", { bubbles: true })
+            );
+            expect(element("detail-bone-name").textContent).toBe(id);
+            chooseState(state);
+
+            await vi.waitFor(() => {
+                expect(mocks.rows.get(id)?.state).toBe(state);
+            });
+
+            expect(mocks.setZoneState).toHaveBeenCalledTimes(1);
+            expect(shape(id).style.fill).toBe(colour);
+
+            for (const other of ["ST_MAN", "ST_STE", "C2_C1", "C2_C2"]) {
+                if (other !== id) {
+                    expect(shape(other).style.fill).toBe("transparent");
+                }
+            }
+
+            await openPage("infant", "axial", content);
+            expect(shape(id).style.fill).toBe(colour);
+        }
+    );
+});
+
+describe("selection zoom", () => {
+    it.each(AGES)("pinches within the zoom limits and resets without changing %s bone states", async age => {
+        mocks.rows.set("FEM_L", {
+            bone: "FEM_L",
+            state: "present-complete"
+        });
+        await openPage(age, "left-lower");
+
+        const viewer = element("skeleton-select-container");
+        const reset = element("reset-zoom-button");
+        expect(element("all-present-button").nextElementSibling).toBe(reset);
+        expect(reset.className).toBe("segment-tab");
+        expect(reset.textContent).toBe("Reset Zoom");
+        expect(drawing().style.width).toBe("300px");
+        expect(drawing().style.height).toBe("300px");
+
+        pinch(2);
+        expect(drawing().style.width).toBe("600px");
+        expect(drawing().style.height).toBe("600px");
+        expect(viewer.scrollLeft).toBeCloseTo(100);
+        expect(viewer.scrollTop).toBeCloseTo(150);  
+
+        reset.click();
+        pinch(10);
+        expect(drawing().style.width).toBe("1800px");
+        expect(drawing().style.height).toBe("1800px");
+
+        pinch(0.01);
+        expect(drawing().style.width).toBe("300px");
+        expect(drawing().style.height).toBe("300px");
+
+        pinch(3);
+        reset.click();
+        expect(drawing().style.width).toBe("300px");
+        expect(drawing().style.height).toBe("300px");
+        expect(viewer.scrollLeft).toBe(0);
+        expect(viewer.scrollTop).toBe(0);
+        expect(shape("FEM_L").style.fill).toBe(GREEN);
+        expect(mocks.rows.get("FEM_L").state).toBe("present-complete");
+        expect(mocks.setZoneState).not.toHaveBeenCalled();
+        expect(mocks.clearZoneState).not.toHaveBeenCalled();
+    });
+
+    it("moves with one finger, ignores gesture clicks and still allows bone tapping", async () => {
+        await openPage();
+        const viewer = element("skeleton-select-container");
+
+        pinch(2);
+        shape("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        expect(element("details-box").style.display).toBe("none");
+
+        const left = viewer.scrollLeft;
+        const top = viewer.scrollTop;
+        touch("touchstart", [[1, 200, 150]], shape("FEM_L"));
+        const move = touch("touchmove", [[1, 170, 110]], shape("FEM_L"));
+        touch("touchend", [], shape("FEM_L"));
+
+        expect(move.defaultPrevented).toBe(true);
+        expect(viewer.scrollLeft).toBeCloseTo(left + 30);
+        expect(viewer.scrollTop).toBeCloseTo(top + 40);
+        expect(drawing().style.width).toBe("600px");
+
+        shape("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        expect(element("details-box").style.display).toBe("none");
+        expect(mocks.setZoneState).not.toHaveBeenCalled();
+        expect(mocks.clearZoneState).not.toHaveBeenCalled();
+
+        touch("touchstart", [[1, 200, 150]], shape("FEM_L"));
+        const end = touch("touchend", [], shape("FEM_L"));
+        expect(end.defaultPrevented).toBe(false);
+        shape("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        expect(element("details-box").style.display).toBe("block");
+        expect(element("detail-bone-name").textContent).toBe("FEM_L");
+
+        chooseState("present-fragmented");
+        await vi.waitFor(() => {
+            expect(mocks.rows.get("FEM_L")?.state).toBe("present-fragmented");
+        });
+        expect(shape("FEM_L").style.fill).toBe(ORANGE);
+    });
+
+    it("fits the new segment and resets zoom and position when switching", async () => {
+        await openPage();
+        pinch(3);
+        expect(drawing().style.width).toBe("900px");
+
+        fetchMock.mockImplementation(async () => ({
+            ok: true,
+            text: async () => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><g id="PEL_L"><path /></g></svg>'
+        }));
+        document.querySelector('#segment-tabs [data-segment="pelvis"]').click();
+        expect(element("reset-zoom-button").disabled).toBe(true);
+
+        await vi.waitFor(() => {
+            expect(element("skeleton-select-container").dataset.segment).toBe("pelvis");
+            expect(element("reset-zoom-button").disabled).toBe(false);
+        });
+
+        expect(drawing().style.width).toBe("400px");
+        expect(drawing().style.height).toBe("200px");
+        expect(element("skeleton-select-container").scrollLeft).toBe(0);
+        expect(element("skeleton-select-container").scrollTop).toBe(0);
+        expect(element("reset-zoom-button").classList).not.toContain("active");
+        expect(mocks.setZoneState).not.toHaveBeenCalled();
+        expect(mocks.clearZoneState).not.toHaveBeenCalled();
+    });
 });
