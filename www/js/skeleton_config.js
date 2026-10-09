@@ -21,6 +21,8 @@ export const CONTAINER_IDS = new Set([
     'left_lower_limb',
     'skeletal_system',
     'child_skeletal_system',
+    'infant_skeletal_system',
+    'adolescent_skeletal_system',
 
     // Cranium sub-view roots
     'skull_anterior',
@@ -75,9 +77,9 @@ export const STATE_COLORS = {
 };
 
 export const STATE_LABELS = {
-    [PRESERVATION_STATES.PRESENT_COMPLETE]:   'Present ✅',
-    [PRESERVATION_STATES.PRESENT_FRAGMENTED]: 'Fragmented ◐',
-    [PRESERVATION_STATES.ABSENT]:             'Absent ✗',
+    [PRESERVATION_STATES.PRESENT_COMPLETE]:   'Present',
+    [PRESERVATION_STATES.PRESENT_FRAGMENTED]: 'Fragmented',
+    [PRESERVATION_STATES.ABSENT]:             'Absent',
     [UNMARKED]:                                'Unmarked'
 };
 
@@ -94,13 +96,12 @@ export const STATE_DOTS = {
 // Age Category Asset Folders
 // ========================================
 
-// Adult and Child assets are currently available.
-// Enable the remaining age categories when their assets are ready.
+// Asset folders are available for all four age categories.
 export const AGE_FOLDER_MAP = {
     [AGE_CATEGORIES.ADULT]: 'adult',
     [AGE_CATEGORIES.CHILD]: 'child',
-    // [AGE_CATEGORIES.ADOLESCENT]: 'adolescent',
-    // [AGE_CATEGORIES.INFANT]:     'infant',
+    [AGE_CATEGORIES.ADOLESCENT]: 'adolescent',
+    [AGE_CATEGORIES.INFANT]: 'infant',
 };
 
 // Return the asset folder for the selected age category.
@@ -120,11 +121,14 @@ export function folderForAge(age) {
 // ========================================
 
 // Use the overview filename supplied for each supported age category.
-// Child uses child_skeletal_system.svg; Adult uses skeletal_system.svg.
+// Child, Infant and Adolescent use age-specific overview filenames.
+// Adult uses skeletal_system.svg.
 export function overviewFileForAge(age) {
-    return folderForAge(age) === 'child'
-        ? 'child_skeletal_system.svg'
-        : 'skeletal_system.svg';
+    const folder = folderForAge(age);
+    if (folder === 'child') return 'child_skeletal_system.svg';
+    if (folder === 'infant') return 'infant_skeletal_system.svg';
+    if (folder === 'adolescent') return 'adolescent_skeletal_system.svg';
+    return 'skeletal_system.svg';
 }
 
 // ========================================
@@ -132,13 +136,17 @@ export function overviewFileForAge(age) {
 // ========================================
 
 // Find the shapes belonging to a bone group.
-// For Child, exclude shapes owned by nested bone groups so unfused parts
-// keep their own colours. Adult continues to use all descendant shapes.
+// Child, Infant and Adolescent parts keep their own shapes and colours.
+// Exclude shapes owned by nested bone groups for these ages.
+// Adult continues to use all descendant shapes.
 export function boneShapesForGroup(group, age) {
     const shapes = Array.from(group.querySelectorAll(
         'path, polygon, circle, ellipse, rect'
     ));
-    if (folderForAge(age) !== 'child') return shapes;
+    const folder = folderForAge(age);
+    if (folder !== 'child' && folder !== 'infant' && folder !== 'adolescent') {
+        return shapes;
+    }
 
     return shapes.filter(shape => {
         let owner = shape.parentElement;
@@ -153,11 +161,12 @@ export function boneShapesForGroup(group, age) {
 }
 
 // Check whether a group can be selected as a bone.
-// Child parent groups remain selectable when they have their own visible
-// shapes. Adult continues to skip groups containing other bones.
+// Child, Infant and Adolescent parent groups can be selected
+// when they have their own visible shapes. Adult skips groups containing other bones.
 export function isSelectableBoneGroup(group, age) {
     if (isNonBoneId(group.id.trim())) return false;
-    if (folderForAge(age) === 'child') {
+    const folder = folderForAge(age);
+    if (folder === 'child' || folder === 'infant' || folder === 'adolescent') {
         return boneShapesForGroup(group, age).some(shape =>
             !shape.hasAttribute('data-hit-zone') &&
             !(shape.hasAttribute('opacity') &&
