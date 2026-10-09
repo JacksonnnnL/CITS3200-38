@@ -103,11 +103,275 @@ const detailsCloseButton = document.getElementById('details-close');
 const allPresentButton = document.getElementById('all-present-button');
 
 // ========================================
+// Zoom Controls
+// ========================================
+
+// Add Reset Zoom beside All Present using the same button style.
+const resetZoomButton = document.createElement('button');
+resetZoomButton.id = 'reset-zoom-button';
+resetZoomButton.className = 'segment-tab';
+resetZoomButton.type = 'button';
+resetZoomButton.textContent = 'Reset Zoom';
+resetZoomButton.disabled = true;
+allPresentButton.insertAdjacentElement('afterend', resetZoomButton);
+
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 6;
+const DRAG_THRESHOLD = 8;
+
+let zoomSvg = null;
+let zoomStage = null;
+let zoomLevel = MIN_ZOOM;
+let fittedWidth = 0;
+let fittedHeight = 0;
+let viewerWidth = 0;
+let viewerHeight = 0;
+let touchGesture = null;
+let suppressClickUntil = 0;
+let segmentLoadId = 0;
+
+// Size every segment from its SVG proportions and the available viewer space.
+function fitSegment() {
+    if (!zoomSvg) return;
+
+    const style = getComputedStyle(container);
+    viewerWidth = Math.max(1, container.clientWidth
+        - (parseFloat(style.paddingLeft) || 0)
+        - (parseFloat(style.paddingRight) || 0));
+    viewerHeight = Math.max(1, container.clientHeight
+        - (parseFloat(style.paddingTop) || 0)
+        - (parseFloat(style.paddingBottom) || 0));
+
+    const viewBox = (zoomSvg.getAttribute('viewBox') || '')
+        .trim().split(/[\s,]+/).map(Number);
+    const svgWidth = viewBox.length === 4 && viewBox[2] > 0
+        ? viewBox[2] : parseFloat(zoomSvg.getAttribute('width')) || 1;
+    const svgHeight = viewBox.length === 4 && viewBox[3] > 0
+        ? viewBox[3] : parseFloat(zoomSvg.getAttribute('height')) || 1;
+    const scale = Math.min(viewerWidth / svgWidth, viewerHeight / svgHeight);
+
+    if (viewBox.length !== 4) {
+        zoomSvg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+    }
+
+    fittedWidth = svgWidth * scale;
+    fittedHeight = svgHeight * scale;
+    resetZoom();
+}
+
+// Resize the drawing and keep the chosen point under the same finger position.
+function setZoom(level, anchor = null) {
+    if (!zoomSvg || !zoomStage) return;
+
+    const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
+    const width = fittedWidth * nextZoom;
+    const height = fittedHeight * nextZoom;
+    const left = Math.max(0, (viewerWidth - width) / 2);
+    const top = Math.max(0, (viewerHeight - height) / 2);
+
+    zoomStage.style.width = `${Math.max(viewerWidth, width)}px`;
+    zoomStage.style.height = `${Math.max(viewerHeight, height)}px`;
+    zoomSvg.style.width = `${width}px`;
+    zoomSvg.style.height = `${height}px`;
+    zoomSvg.style.left = `${left}px`;
+    zoomSvg.style.top = `${top}px`;
+    zoomLevel = nextZoom;
+
+    if (anchor) {
+        container.scrollLeft = left + anchor.x * width - anchor.screenX;
+        container.scrollTop = top + anchor.y * height - anchor.screenY;
+    }
+}
+
+// Return to the fitted view without changing any bone states.
+function resetZoom() {
+    touchGesture = null;
+    setZoom(MIN_ZOOM);
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
+}
+
+// Prepare a shared drawing area after each SVG loads.
+function prepareSegmentZoom() {
+    zoomSvg = container.querySelector('svg');
+    if (!zoomSvg) return;
+
+    zoomStage = document.createElement('div');
+    zoomStage.className = 'skeleton-zoom-stage';
+    zoomSvg.parentNode.insertBefore(zoomStage, zoomSvg);
+    zoomStage.appendChild(zoomSvg);
+    zoomSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    fitSegment();
+    resetZoomButton.disabled = false;
+}
+
+// Get finger positions relative to the viewer's inner drawing area.
+function touchPoint(touch) {
+    const rect = container.getBoundingClientRect();
+    const style = getComputedStyle(container);
+    return {
+        x: touch.clientX - rect.left - container.clientLeft
+            - (parseFloat(style.paddingLeft) || 0),
+        y: touch.clientY - rect.top - container.clientTop
+            - (parseFloat(style.paddingTop) || 0)
+    };
+}
+
+// Start a pinch using the point between the first two fingers.
+function startPinch(touches) {
+    const first = touchPoint(touches[0]);
+    const second = touchPoint(touches[1]);
+    const screenX = (first.x + second.x) / 2;
+    const screenY = (first.y + second.y) / 2;
+    const left = parseFloat(zoomSvg.style.left) || 0;
+    const top = parseFloat(zoomSvg.style.top) || 0;
+
+    touchGesture = {
+        type: 'pinch',
+        ids: [touches[0].identifier, touches[1].identifier],
+        distance: Math.max(1, Math.hypot(first.x - second.x, first.y - second.y)),
+        zoom: zoomLevel,
+        x: (container.scrollLeft + screenX - left) / (fittedWidth * zoomLevel),
+        y: (container.scrollTop + screenY - top) / (fittedHeight * zoomLevel),
+        moved: true
+    };
+    suppressClickUntil = Date.now() + 400;
+}
+
+// One finger moves the drawing; two fingers change its zoom.
+container.addEventListener('touchstart', event => {
+    if (!zoomSvg) return;
+    if (event.touches.length >= 2) {
+        startPinch(event.touches);
+    } else if (event.touches.length === 1) {
+        const touch = event.touches[0];
+        touchGesture = {
+            type: 'pan',
+            id: touch.identifier,
+            x: touch.clientX,
+            y: touch.clientY,
+            left: container.scrollLeft,
+            top: container.scrollTop,
+            moved: false
+        };
+        suppressClickUntil = 0;
+    }
+}, { passive: true });
+
+container.addEventListener('touchmove', event => {
+    if (!zoomSvg || !touchGesture) return;
+    if (event.cancelable) event.preventDefault();
+
+    if (touchGesture.type === 'pinch') {
+        const touches = Array.from(event.touches);
+        const firstTouch = touches.find(t => t.identifier === touchGesture.ids[0]);
+        const secondTouch = touches.find(t => t.identifier === touchGesture.ids[1]);
+        if (!firstTouch || !secondTouch) return;
+
+        const first = touchPoint(firstTouch);
+        const second = touchPoint(secondTouch);
+        const distance = Math.hypot(first.x - second.x, first.y - second.y);
+        setZoom(touchGesture.zoom * distance / touchGesture.distance, {
+            x: touchGesture.x,
+            y: touchGesture.y,
+            screenX: (first.x + second.x) / 2,
+            screenY: (first.y + second.y) / 2
+        });
+    } else {
+        const touch = Array.from(event.touches)
+            .find(t => t.identifier === touchGesture.id);
+        if (!touch) return;
+
+        const dx = touch.clientX - touchGesture.x;
+        const dy = touch.clientY - touchGesture.y;
+        if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) touchGesture.moved = true;
+        if (touchGesture.moved) {
+            container.scrollLeft = touchGesture.left - dx;
+            container.scrollTop = touchGesture.top - dy;
+        }
+    }
+
+    if (touchGesture.moved) suppressClickUntil = Date.now() + 400;
+}, { passive: false });
+
+// Ignore the click generated after a drag or pinch, while keeping normal taps.
+function finishTouch(event) {
+    if (touchGesture?.moved) {
+        suppressClickUntil = Date.now() + 400;
+        if (event.cancelable) event.preventDefault();
+    }
+    if (event.touches.length === 0) touchGesture = null;
+}
+
+container.addEventListener('touchend', finishTouch, { passive: false });
+container.addEventListener('touchcancel', () => {
+    suppressClickUntil = Date.now() + 400;
+    touchGesture = null;
+});
+
+container.addEventListener('click', event => {
+    if (touchGesture?.moved || Date.now() < suppressClickUntil) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+}, true);
+
+// Support mouse-wheel movement and Ctrl + wheel zoom on desktop.
+container.addEventListener('wheel', event => {
+    if (!zoomSvg) return;
+
+    if (event.ctrlKey) {
+        event.preventDefault();
+        const point = touchPoint(event);
+        const left = parseFloat(zoomSvg.style.left) || 0;
+        const top = parseFloat(zoomSvg.style.top) || 0;
+        setZoom(zoomLevel * Math.exp(-event.deltaY * 0.01), {
+            x: (container.scrollLeft + point.x - left) / (fittedWidth * zoomLevel),
+            y: (container.scrollTop + point.y - top) / (fittedHeight * zoomLevel),
+            screenX: point.x,
+            screenY: point.y
+        });
+    } else if (zoomLevel > MIN_ZOOM) {
+        const unit = event.deltaMode === 1 ? 16
+            : event.deltaMode === 2 ? viewerHeight : 1;
+        const dx = event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX;
+        const dy = event.shiftKey && !event.deltaX ? 0 : event.deltaY;
+        const left = container.scrollLeft;
+        const top = container.scrollTop;
+        container.scrollLeft += dx * unit;
+        container.scrollTop += dy * unit;
+        if (container.scrollLeft !== left || container.scrollTop !== top) {
+            event.preventDefault();
+        }
+    }
+}, { passive: false });
+
+resetZoomButton.addEventListener('click', resetZoom);
+
+// Fit the segment again when the viewer changes size or the phone rotates.
+if (typeof ResizeObserver !== 'undefined') {
+    const observer = new ResizeObserver(() => {
+        if (!zoomSvg) return;
+        const style = getComputedStyle(container);
+        const width = container.clientWidth
+            - (parseFloat(style.paddingLeft) || 0)
+            - (parseFloat(style.paddingRight) || 0);
+        const height = container.clientHeight
+            - (parseFloat(style.paddingTop) || 0)
+            - (parseFloat(style.paddingBottom) || 0);
+        if (Math.abs(width - viewerWidth) > 1 || Math.abs(height - viewerHeight) > 1) {
+            fitSegment();
+        }
+    });
+    observer.observe(container);
+}
+
+// ========================================
 // Apply Bone State Colours
 // ========================================
 
 // Apply the saved state colour, or the unmarked colour when no state is set.
-// Child nested parts keep their own colours; decorative shapes are skipped.
+// Child, Infant and Adolescent parts keep separate colours; decorative shapes are skipped.
 function paintGroup(group, state) {
     const fillColor = (state && STATE_COLORS[state])
         ? STATE_COLORS[state]
@@ -126,7 +390,7 @@ function paintGroup(group, state) {
 
 // Apply or clear the state for every linked view of the same bone.
 // Update the colours on screen and save each linked ID.
-// Child unfused numbered parts remain independent from their parent bone.
+// Child, Infant and Adolescent unfused parts remain independent from their parent bone.
 async function applyStateToLinkedBones(boneId, finalState) {
     const ids = linkedSvgIds(boneId, currentAccession?.ageCategory);
 
@@ -185,7 +449,7 @@ function closeDetailsBox() {
 // ========================================
 
 // Load the individual, site details and saved bone states.
-// Open the requested segment, or the first available segment.
+// Open the requested segment or the first available segment.
 async function loadData() {
     try {
         currentAccession = await getAccessionById(accessionId);
@@ -216,7 +480,6 @@ async function loadData() {
         if (!currentFolder) {
             container.innerHTML = `
                 <div style="text-align:center;color:var(--text-muted);padding:40px;">
-                    <span style="font-size:48px;display:block;margin-bottom:8px;">🦴</span>
                     This age category is not yet available.<br>
                     <span style="font-size:14px;">Please check back in a future update.</span>
                 </div>
@@ -289,11 +552,15 @@ async function loadSegment(segmentId) {
     if (!currentFolder) return;
 
     allPresentButton.disabled = true;
+    resetZoomButton.disabled = true;
+    zoomSvg = null;
+    zoomStage = null;
+    touchGesture = null;
+    const loadId = ++segmentLoadId;
 
     currentSegment = segmentId;
 
-    document.querySelectorAll('.segment-tab').forEach(tab => {
-        if (tab.id === 'all-present-button') return;
+    segmentTabs.querySelectorAll('.segment-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.segment === segmentId);
     });
 
@@ -309,19 +576,25 @@ async function loadSegment(segmentId) {
             throw new Error(`HTTP ${response.status}`);
         }
         const svgText = await response.text();
+        if (loadId !== segmentLoadId) return;
 
         container.innerHTML = svgText;
         prepareSkeletonSvg(container, currentAccession?.ageCategory);
 
         container.dataset.segment = segmentId;
+        container.dataset.age = currentFolder;
 
+        prepareSegmentZoom();
         applyColorsAndMakeClickable();
     } catch (error) {
+        if (loadId !== segmentLoadId) return;
+        zoomSvg = null;
+        zoomStage = null;
+        resetZoomButton.disabled = true;
         console.error('Failed to load segment:', segment.label, error);
 
         container.innerHTML = `
             <div style="text-align:center;color:var(--text-muted);padding:40px;">
-                <span style="font-size:48px;display:block;margin-bottom:8px;">🦴</span>
                 Failed to load ${segment.label}<br>
                 <span style="font-size:14px;">${error.message}</span>
             </div>
@@ -353,7 +626,7 @@ function applyColorsAndMakeClickable() {
     boneElements.forEach(group => {
         const boneId = group.id.trim();
 
-        // Use the parent bone's own shapes so Child nested parts stay independent.
+        // Use each bone's own shapes so nested parts keep separate colours and highlights.
         const allShapes = boneShapesForGroup(
             group,
             currentAccession?.ageCategory
