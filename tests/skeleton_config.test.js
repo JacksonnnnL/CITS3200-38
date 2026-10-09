@@ -22,6 +22,15 @@ import {
     AGE_CATEGORIES
 } from "../www/js/data.js";
 
+const AGE_CASES = [
+    [AGE_CATEGORIES.ADULT, "adult", "skeletal_system.svg"],
+    [AGE_CATEGORIES.CHILD, "child", "child_skeletal_system.svg"],
+    [AGE_CATEGORIES.INFANT, "infant", "infant_skeletal_system.svg"],
+    [AGE_CATEGORIES.ADOLESCENT, "adolescent", "adolescent_skeletal_system.svg"]
+];
+
+const PART_AGES = ["child", "infant", "adolescent"];
+
 describe("isNonBoneId", () => {
     it("rejects empty / null ids", () => {
         expect(isNonBoneId("")).toBe(true);
@@ -35,9 +44,11 @@ describe("isNonBoneId", () => {
         }
     });
 
-    it("includes Adult and Child SVG containers", () => {
+    it("includes all four age SVG containers", () => {
         expect(CONTAINER_IDS.has("skeletal_system")).toBe(true);
         expect(CONTAINER_IDS.has("child_skeletal_system")).toBe(true);
+        expect(CONTAINER_IDS.has("infant_skeletal_system")).toBe(true);
+        expect(CONTAINER_IDS.has("adolescent_skeletal_system")).toBe(true);
         expect(CONTAINER_IDS.has("skull_top")).toBe(true);
         expect(CONTAINER_IDS.has("auditory_ossicles_left")).toBe(true);
         expect(CONTAINER_IDS.has("auditory_ossicles_right")).toBe(true);
@@ -84,18 +95,9 @@ describe("isNonBoneId", () => {
 });
 
 describe("folderForAge", () => {
-    it("maps adult to 'adult'", () => {
-        expect(folderForAge(AGE_CATEGORIES.ADULT)).toBe("adult");
-    });
-
-    it("maps child to its asset folder", () => {
-        expect(folderForAge(AGE_CATEGORIES.CHILD)).toBe("child");
-        expect(folderForAge("CHILD")).toBe("child");
-    });
-
-    it("returns null for ages without assets", () => {
-        expect(folderForAge(AGE_CATEGORIES.ADOLESCENT)).toBe(null);
-        expect(folderForAge(AGE_CATEGORIES.INFANT)).toBe(null);
+    it.each(AGE_CASES)("maps %s to its asset folder", (age, folder) => {
+        expect(folderForAge(age)).toBe(folder);
+        expect(folderForAge(age.toUpperCase())).toBe(folder);
     });
 
     it("is case-insensitive", () => {
@@ -135,22 +137,15 @@ describe("state maps", () => {
 });
 
 describe("AGE_FOLDER_MAP", () => {
-    it("has adult and child entries; adolescent and infant remain unavailable", () => {
-        expect(AGE_FOLDER_MAP[AGE_CATEGORIES.ADULT]).toBe("adult");
-        expect(AGE_FOLDER_MAP[AGE_CATEGORIES.CHILD]).toBe("child");
-        expect(AGE_FOLDER_MAP[AGE_CATEGORIES.ADOLESCENT]).toBeUndefined();
-        expect(AGE_FOLDER_MAP[AGE_CATEGORIES.INFANT]).toBeUndefined();
+    it.each(AGE_CASES)("has an asset folder for %s", (age, folder) => {
+        expect(AGE_FOLDER_MAP[age]).toBe(folder);
     });
 });
 
 describe("overviewFileForAge", () => {
-    it("keeps the Adult overview filename", () => {
-        expect(overviewFileForAge("adult")).toBe("skeletal_system.svg");
-    });
-
-    it("uses the supplied Child overview filename", () => {
-        expect(overviewFileForAge("child")).toBe("child_skeletal_system.svg");
-        expect(overviewFileForAge("CHILD")).toBe("child_skeletal_system.svg");
+    it.each(AGE_CASES)("uses the correct overview filename for %s", (age, folder, file) => {
+        expect(overviewFileForAge(age)).toBe(file);
+        expect(overviewFileForAge(age.toUpperCase())).toBe(file);
     });
 });
 
@@ -175,11 +170,12 @@ describe("bone group helpers", () => {
         const group = doc.getElementById("FEM_L");
 
         expect(hasRealBoneSubgroups(group)).toBe(false);
-        expect(isSelectableBoneGroup(group, "adult")).toBe(true);
-        expect(isSelectableBoneGroup(group, "child")).toBe(true);
+        for (const [age] of AGE_CASES) {
+            expect(isSelectableBoneGroup(group, age)).toBe(true);
+        }
     });
 
-    it("keeps Child parent shapes separate from nested parts", () => {
+    it.each(PART_AGES)("keeps %s parent shapes separate from nested parts", age => {
         const doc = svgDocument(`
             <g id="FEM_L">
                 <g id="Vector_1"><path id="own" /></g>
@@ -190,10 +186,10 @@ describe("bone group helpers", () => {
         const part = doc.getElementById("FEM_L2");
 
         expect(hasRealBoneSubgroups(parent)).toBe(true);
-        expect(boneShapesForGroup(parent, "child").map(s => s.id)).toEqual(["own"]);
-        expect(boneShapesForGroup(part, "child").map(s => s.id)).toEqual(["part"]);
-        expect(isSelectableBoneGroup(parent, "child")).toBe(true);
-        expect(isSelectableBoneGroup(part, "child")).toBe(true);
+        expect(boneShapesForGroup(parent, age).map(s => s.id)).toEqual(["own"]);
+        expect(boneShapesForGroup(part, age).map(s => s.id)).toEqual(["part"]);
+        expect(isSelectableBoneGroup(parent, age)).toBe(true);
+        expect(isSelectableBoneGroup(part, age)).toBe(true);
 
         expect(boneShapesForGroup(parent, "adult").map(s => s.id))
             .toEqual(["own", "part"]);
@@ -201,16 +197,16 @@ describe("bone group helpers", () => {
         expect(isSelectableBoneGroup(part, "adult")).toBe(true);
     });
 
-    it("skips Child parents with no shapes of their own", () => {
+    it.each(PART_AGES)("skips %s parents with no shapes of their own", age => {
         const doc = svgDocument(`
             <g id="FEM_L"><g id="FEM_L2"><path /></g></g>
         `);
 
-        expect(isSelectableBoneGroup(doc.getElementById("FEM_L"), "child"))
+        expect(isSelectableBoneGroup(doc.getElementById("FEM_L"), age))
             .toBe(false);
     });
 
-    it("skips containers, empty groups and decorative-only Child groups", () => {
+    it.each(PART_AGES)("skips containers, empty groups and decorative-only %s groups", age => {
         const doc = svgDocument(`
             <g id="pelvis"><path /></g>
             <g id="FEM_L"></g>
@@ -218,18 +214,18 @@ describe("bone group helpers", () => {
         `);
 
         for (const id of ["pelvis", "FEM_L", "FEM_R"]) {
-            expect(isSelectableBoneGroup(doc.getElementById(id), "child"))
+            expect(isSelectableBoneGroup(doc.getElementById(id), age))
                 .toBe(false);
         }
     });
 
-    it("accepts every supported visible shape type for Child", () => {
+    it.each(PART_AGES)("accepts every supported visible shape type for %s", age => {
         for (const tag of ["path", "polygon", "circle", "ellipse", "rect"]) {
             const doc = svgDocument(`
                 <g id="FEM_L"><${tag} opacity="1" /></g>
             `);
 
-            expect(isSelectableBoneGroup(doc.getElementById("FEM_L"), "child"))
+            expect(isSelectableBoneGroup(doc.getElementById("FEM_L"), age))
                 .toBe(true);
         }
     });
@@ -260,11 +256,11 @@ describe("prepareSkeletonSvg", () => {
         expect(doc.querySelectorAll('g[id="RSU"]')).toHaveLength(1);
     });
 
-    it("leaves Adult SVGs unchanged", () => {
+    it.each(["adult", "infant", "adolescent"])("leaves %s SVGs unchanged", age => {
         const doc = svgDocument(`<path id="RSU" />`);
         const before = doc.querySelector("svg").outerHTML;
 
-        prepareSkeletonSvg(doc, "adult");
+        prepareSkeletonSvg(doc, age);
 
         expect(doc.querySelector("svg").outerHTML).toBe(before);
     });
@@ -276,5 +272,22 @@ describe("prepareSkeletonSvg", () => {
         prepareSkeletonSvg(doc, "child");
 
         expect(doc.querySelector("svg").outerHTML).toBe(before);
+    });
+});
+
+
+describe("Infant and Adolescent bone IDs", () => {
+    it.each([
+        ["infant", ["ST_MAN", "ST_STE", "C2_C1", "C2_C2", "TEM_L_ENDO", "MAN_L"]],
+        ["adolescent", ["CRA", "NAS_L_ant", "NAS_R_ant", "MAX_R_inf"]]
+    ])("recognises the current %s groups as selectable bones", (age, ids) => {
+        const doc = svgDocument(
+            ids.map(id => `<g id="${id}"><path /></g>`).join("")
+        );
+
+        for (const id of ids) {
+            expect(isNonBoneId(id)).toBe(false);
+            expect(isSelectableBoneGroup(doc.getElementById(id), age)).toBe(true);
+        }
     });
 });
