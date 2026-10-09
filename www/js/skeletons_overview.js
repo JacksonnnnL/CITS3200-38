@@ -20,7 +20,7 @@ import {
 // ========================================
 
 // Map each page segment ID to its group ID in the overview SVG.
-// Adult and Child use the same seven segment roots.
+// All four age categories use the same seven segment roots.
 const SEGMENTS = [
     { id: 'cranium',     label: 'Cranium',      svgRootId: 'cranium',          available: true },
     { id: 'axial',       label: 'Axial',        svgRootId: 'axial_skeleton',   available: true },
@@ -254,7 +254,6 @@ async function loadSkeletonBoard(folder) {
 
         board.innerHTML = `
             <div class="skeleton-placeholder">
-                <span class="icon">🦴</span>
                 Could not load skeleton.<br>
                 <span style="font-size:14px;color:var(--text-light);">
                     Make sure ${overviewFile} is in assets/skeletons/${folder}/
@@ -338,9 +337,12 @@ function cacheSegmentBoxes(board) {
         }
 
         // Keep the original split and shrink rules for Adult.
-        // Child uses full segment boxes because its layout is different.
+        // Child, Infant and Adolescent use full segment boxes for their layouts.
         // Direct bone clicks still follow the nearest segment root.
-        const ageRule = folderForAge(ageCategory) === 'child'
+        const folder = folderForAge(ageCategory);
+        const ageRule = folder === 'child' ||
+                        folder === 'infant' ||
+                        folder === 'adolescent'
             ? null
             : SEGMENT_BBOX_RULES[seg.id];
 
@@ -393,8 +395,8 @@ function screenToSvg(svgRoot, clientX, clientY) {
 // Segment Click Handler
 // ========================================
 
-// First, find the nearest segment root above the clicked element.
-// Otherwise, use the segment box containing the click.
+// Find the nearest segment root above the clicked element.
+// If not, then use the segment box containing the click.
 // If boxes overlap, choose the one with the closest centre.
 function attachSegmentClickHandler(board) {
     const svgRoot = board.querySelector('svg');
@@ -509,6 +511,7 @@ function applyBoneColors(scope) {
 // ========================================
 
 // Keep the expand-button placeholder; segments open through skeleton clicks.
+// Export function
 document.getElementById('expand-btn')?.addEventListener('click', () => {
     if (!exportMode) {
         return;
