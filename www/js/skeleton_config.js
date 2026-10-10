@@ -7,15 +7,11 @@ import {
 // Container / Bone ID Helpers
 // ========================================
 
-// IDs that belong to container "views" or wrappers, not bones:
-//   - Segment roots (pelvis, cranium, ...)
-//   - Cranium sub-views (skull_anterior, skull_right_lateral, ...)
-//   - Composite overview root (skeletal_system)
-//   - Ossicle wrappers (auditory_ossicles_left / right)
-// Anything in this set is skipped when walking the SVG.
-// Add any new segment root here — both skeleton pages pick it up.
+// These IDs identify segment roots, skull views and SVG containers.
+// Both skeleton pages skip them when finding selectable bones.
+// Add new container IDs here so both pages use the same rules.
 export const CONTAINER_IDS = new Set([
-    // Segment roots in skeletal_system.svg and in each per-segment file
+    // Segment and overview roots
     'pelvis',
     'cranium',
     'axial_skeleton',
@@ -24,6 +20,9 @@ export const CONTAINER_IDS = new Set([
     'right_lower_limb',
     'left_lower_limb',
     'skeletal_system',
+    'child_skeletal_system',
+    'infant_skeletal_system',
+    'adolescent_skeletal_system',
 
     // Cranium sub-view roots
     'skull_anterior',
@@ -33,14 +32,13 @@ export const CONTAINER_IDS = new Set([
     'skull_inferior',
     'skull_top',
 
-    // Auditory ossicles wrappers
+    // Auditory ossicle containers
     'auditory_ossicles_left',
     'auditory_ossicles_right'
 ]);
 
-// True if the id is NOT a real bone: empty, a container / view
-// root, an Inkscape/Illustrator wrapper ("Vector_1", "Group 16"),
-// or a clip / defs / mask element.
+// Return true for empty IDs, known containers and SVG editor wrappers.
+// These elements should not be treated as selectable bones.
 export function isNonBoneId(id) {
     if (!id) return true;
     if (CONTAINER_IDS.has(id)) return true;
@@ -52,9 +50,8 @@ export function isNonBoneId(id) {
     return false;
 }
 
-// True if `group` contains OTHER real bone sub-groups (i.e. it is
-// a wrapper around bones, not a bone itself). A bone containing
-// only internal wrappers (Vector_* / Group N) is still a bone.
+// Check whether a group contains other bone groups.
+// Internal SVG editor wrappers do not count as separate bones.
 export function hasRealBoneSubgroups(group) {
     const children = group.querySelectorAll('g[id]');
     for (const child of children) {
@@ -65,12 +62,11 @@ export function hasRealBoneSubgroups(group) {
 }
 
 // ========================================
-// Preservation State Tokens
+// Preservation State Colours and Labels
 // ========================================
 
-// Keyed on the strings from data.js so a rename there flows
-// through automatically. UNMARKED is a UI-only pseudo-state
-// (not persisted) — what a bone shows with no recorded state.
+// Use the preservation state values defined in data.js.
+// UNMARKED is used for display when a bone has no saved state.
 export const UNMARKED = 'unmarked';
 
 export const STATE_COLORS = {
@@ -81,15 +77,14 @@ export const STATE_COLORS = {
 };
 
 export const STATE_LABELS = {
-    [PRESERVATION_STATES.PRESENT_COMPLETE]:   'Present ✅',
-    [PRESERVATION_STATES.PRESENT_FRAGMENTED]: 'Fragmented ◐',
-    [PRESERVATION_STATES.ABSENT]:             'Absent ✗',
+    [PRESERVATION_STATES.PRESENT_COMPLETE]:   'Present',
+    [PRESERVATION_STATES.PRESENT_FRAGMENTED]: 'Fragmented',
+    [PRESERVATION_STATES.ABSENT]:             'Absent',
     [UNMARKED]:                                'Unmarked'
 };
 
-// Same values as STATE_COLORS today; separate export so the two
-// uses (SVG fill vs. status dot) can diverge later without
-// touching call sites.
+// Keep status-dot colours separate from SVG fill colours.
+// Unmarked bones use a white status dot.
 export const STATE_DOTS = {
     [PRESERVATION_STATES.PRESENT_COMPLETE]:   '#2e7d32',
     [PRESERVATION_STATES.PRESENT_FRAGMENTED]: '#ed6c02',
@@ -98,20 +93,19 @@ export const STATE_DOTS = {
 };
 
 // ========================================
-// Age -> Asset Folder Mapping
+// Age Category Asset Folders
 // ========================================
 
-// Only 'adult' has assets today. Uncomment a line below when a
-// new folder is added under assets/skeletons/.
+// Asset folders are available for all four age categories.
 export const AGE_FOLDER_MAP = {
     [AGE_CATEGORIES.ADULT]: 'adult',
-    // [AGE_CATEGORIES.CHILD]:      'child',
-    // [AGE_CATEGORIES.ADOLESCENT]: 'adolescent',
-    // [AGE_CATEGORIES.INFANT]:     'infant',
+    [AGE_CATEGORIES.CHILD]: 'child',
+    [AGE_CATEGORIES.ADOLESCENT]: 'adolescent',
+    [AGE_CATEGORIES.INFANT]: 'infant',
 };
 
-// Returns the folder for an age category, or null if that age has
-// no assets yet (caller shows the "coming soon" placeholder).
+// Return the asset folder for the selected age category.
+// Return null when no folder is configured so the page can show a placeholder.
 export function folderForAge(age) {
     try {
         const normalized = (age || '').toLowerCase();
@@ -120,4 +114,85 @@ export function folderForAge(age) {
         console.error('Failed to resolve folder for age:', age, error);
         return null;
     }
+}
+
+// ========================================
+// Age Category Overview Files
+// ========================================
+
+// Use the overview filename supplied for each supported age category.
+// Child, Infant and Adolescent use age-specific overview filenames.
+// Adult uses skeletal_system.svg.
+export function overviewFileForAge(age) {
+    const folder = folderForAge(age);
+    if (folder === 'child') return 'child_skeletal_system.svg';
+    if (folder === 'infant') return 'infant_skeletal_system.svg';
+    if (folder === 'adolescent') return 'adolescent_skeletal_system.svg';
+    return 'skeletal_system.svg';
+}
+
+// ========================================
+// Selectable Bone Shapes / Groups
+// ========================================
+
+// Find the shapes belonging to a bone group.
+// Child, Infant and Adolescent parts keep their own shapes and colours.
+// Exclude shapes owned by nested bone groups for these ages.
+// Adult continues to use all descendant shapes.
+export function boneShapesForGroup(group, age) {
+    const shapes = Array.from(group.querySelectorAll(
+        'path, polygon, circle, ellipse, rect'
+    ));
+    const folder = folderForAge(age);
+    if (folder !== 'child' && folder !== 'infant' && folder !== 'adolescent') {
+        return shapes;
+    }
+
+    return shapes.filter(shape => {
+        let owner = shape.parentElement;
+        while (owner && owner !== group) {
+            if (owner.localName === 'g' && !isNonBoneId(owner.id.trim())) {
+                return false;
+            }
+            owner = owner.parentElement;
+        }
+        return owner === group;
+    });
+}
+
+// Check whether a group can be selected as a bone.
+// Child, Infant and Adolescent parent groups can be selected
+// when they have their own visible shapes. Adult skips groups containing other bones.
+export function isSelectableBoneGroup(group, age) {
+    if (isNonBoneId(group.id.trim())) return false;
+    const folder = folderForAge(age);
+    if (folder === 'child' || folder === 'infant' || folder === 'adolescent') {
+        return boneShapesForGroup(group, age).some(shape =>
+            !shape.hasAttribute('data-hit-zone') &&
+            !(shape.hasAttribute('opacity') &&
+              parseFloat(shape.getAttribute('opacity')) < 1)
+        );
+    }
+    return !hasRealBoneSubgroups(group);
+}
+
+// ========================================
+// Child SVG Preparation
+// ========================================
+
+// Wrap the Child RSU rib-table path in a group when the SVG loads.
+// This lets the cell use the same selection logic as other bone groups.
+export function prepareSkeletonSvg(scope, age) {
+    if (folderForAge(age) !== 'child') return;
+
+    const cell = scope.querySelector('path[id="RSU"]');
+    if (!cell) return;
+
+    const group = cell.ownerDocument.createElementNS(
+        'http://www.w3.org/2000/svg', 'g'
+    );
+    group.id = cell.id;
+    cell.removeAttribute('id');
+    cell.parentNode.insertBefore(group, cell);
+    group.appendChild(cell);
 }

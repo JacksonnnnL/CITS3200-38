@@ -5,7 +5,6 @@ import {
 } from "vitest";
 
 import {
-    STATE_CODES,
     stateToCode,
     buildExportRows,
     escapeCsvValue,
@@ -62,8 +61,9 @@ describe("stateToCode", () => {
 
 });
 
+
 // ========================================
-// Bone conversion
+// Bone Conversion
 // ========================================
 
 describe("buildExportRows", () => {
@@ -72,9 +72,9 @@ describe("buildExportRows", () => {
 
         const zoneStates = [
             {
-                bone: "femur_right",
+                bone: "FEM_R",
                 side: "",
-                zone: "femur_right",
+                zone: "FEM_R",
                 state:
                     PRESERVATION_STATES.PRESENT_COMPLETE
             }
@@ -88,20 +88,46 @@ describe("buildExportRows", () => {
         expect(rows).toHaveLength(1);
 
         expect(rows[0]).toEqual({
-            bone_id: "femur_right",
-            element_code: "FEM-R",
+            bone_id: "FEM_R",
+            element_code: "FEM_R",
             element_label: "Right femur",
-            side: "",
-            zone: "femur_right",
-            state_code: 2,
-            state: "present-complete"
+            state_code: 2
+        });
+    });
+
+
+    it("keeps non-MNI bones but leaves MNI fields blank", () => {
+
+        const zoneStates = [
+            {
+                bone: "MAL_L",
+                side: "",
+                zone: "MAL_L",
+                state:
+                    PRESERVATION_STATES.PRESENT_COMPLETE
+            }
+        ];
+
+
+        const rows =
+            buildExportRows(zoneStates);
+
+
+        expect(rows).toHaveLength(1);
+
+        expect(rows[0]).toEqual({
+            bone_id: "MAL_L",
+            element_code: "",
+            element_label: "",
+            state_code: 2
         });
     });
 
 });
 
+
 // ========================================
-// Test CSV formatting
+// CSV Value Formatting
 // ========================================
 
 describe("escapeCsvValue", () => {
@@ -109,8 +135,8 @@ describe("escapeCsvValue", () => {
     it("leaves simple text unchanged", () => {
 
         expect(
-            escapeCsvValue("femur_right")
-        ).toBe("femur_right");
+            escapeCsvValue("FEM_R")
+        ).toBe("FEM_R");
     });
 
 
@@ -129,10 +155,19 @@ describe("escapeCsvValue", () => {
         ).toBe('"Bone ""A"""');
     });
 
+
+    it("returns blank for null values", () => {
+
+        expect(
+            escapeCsvValue(null)
+        ).toBe("");
+    });
+
 });
 
+
 // ========================================
-// Test for completing CSV string
+// CSV String Creation
 // ========================================
 
 describe("rowsToCsv", () => {
@@ -141,23 +176,17 @@ describe("rowsToCsv", () => {
 
         const rows = [
             {
-                bone_id: "femur_right",
-                element_code: "FEM-R",
+                bone_id: "FEM_R",
+                element_code: "FEM_R",
                 element_label: "Right femur",
-                side: "",
-                zone: "femur_right",
-                state_code: 2,
-                state: "present-complete"
+                state_code: 2
             },
 
             {
-                bone_id: "tibia_left",
-                element_code: "TIB-L",
+                bone_id: "TIB_L",
+                element_code: "TIB_L",
                 element_label: "Left tibia",
-                side: "",
-                zone: "tibia_left",
-                state_code: 1,
-                state: "present-fragmented"
+                state_code: 1
             }
         ];
 
@@ -166,19 +195,38 @@ describe("rowsToCsv", () => {
             rowsToCsv(rows);
 
 
-        console.log(csv);
-
-
         expect(csv).toContain(
-            "bone_id,element_code,element_label,side,zone,state_code,state"
+            "bone_id,element_code,element_label,state_code"
         );
 
         expect(csv).toContain(
-            "femur_right,FEM-R,Right femur,,femur_right,2,present-complete"
+            "FEM_R,FEM_R,Right femur,2"
         );
 
         expect(csv).toContain(
-            "tibia_left,TIB-L,Left tibia,,tibia_left,1,present-fragmented"
+            "TIB_L,TIB_L,Left tibia,1"
+        );
+    });
+
+
+    it("supports rows with no MNI mapping", () => {
+
+        const rows = [
+            {
+                bone_id: "MAL_L",
+                element_code: "",
+                element_label: "",
+                state_code: 2
+            }
+        ];
+
+
+        const csv =
+            rowsToCsv(rows);
+
+
+        expect(csv).toContain(
+            "MAL_L,,,2"
         );
     });
 

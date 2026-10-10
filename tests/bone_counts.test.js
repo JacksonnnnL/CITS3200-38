@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 
 import {
+  AGE_CATEGORIES,
   NotFoundError,
   PRESERVATION_STATES,
   __resetConnectionForTests,
@@ -28,6 +29,137 @@ import {
 const { PRESENT_COMPLETE, PRESENT_FRAGMENTED, ABSENT } = PRESERVATION_STATES;
 
 const row = (bone, state) => ({ bone, side: "", zone: bone, state });
+
+const CHILD_MAPPING_CASES = [
+  ["RT1L", "RIB_L1"], ["RT1R", "RIB_R1"],
+  ["C1C", "VC1"], ["C1N", "VC1"],
+  ["C2C", "VC2"], ["C2N", "VC2"],
+  ["NAS_L", "CRA"], ["NAS_R", "CRA"],
+  ["OCC_L_lat_l", "CRA"], ["OCC_R_lat_r", "CRA"],
+];
+
+const INFANT_MAPPING_CASES = [
+  ["RIB_T1_L", "RIB_L1"], ["RIB_T1_R", "RIB_R1"],
+  ["C1_C", "VC1"], ["C1_RNA", "VC1"], ["C1_LNA", "VC1"],
+  ["C2_C1", "VC2"], ["C2_C2", "VC2"],
+  ["C2_RNA", "VC2"], ["C2_LNA", "VC2"],
+  ["OCC_squama", "CRA"], ["OCC_basilar", "CRA"],
+  ["OCC_lateral_L", "CRA"], ["OCC_lateral_R", "CRA"],
+  ["PAR_L", "CRA"], ["PAR_R", "CRA"],
+  ["TEM_L_ENDO", "CRA"], ["TEM_L_EXO", "CRA"],
+  ["TEM_R_ENDO", "CRA"], ["TEM_R_EXO", "CRA"],
+  ["FRONT_L_EXO", "CRA"], ["FRONT_R_EXO", "CRA"],
+  ["SPH", "CRA"], ["SPH_BODY", "CRA"], ["SPH_L", "CRA"], ["SPH_R", "CRA"],
+  ["ETH_L", "CRA"], ["ETH_R", "CRA"],
+  ["MAX_L", "CRA"], ["MAX_R", "CRA"],
+  ["ZYG_L", "CRA"], "ZYG_R".split().map(id => [id, "CRA"])[0],
+  ["LAC_L", "CRA"], ["LAC_R", "CRA"],
+  ["PAL_L", "CRA"], ["PAL_R", "CRA"], ["VOM", "CRA"],
+  ["MAN_L", "MND"], ["MAN_R", "MND"],
+];
+
+const ADOLESCENT_MAPPING_CASES = [
+  ["CRA", "CRA"], ["NAS_L_ant", "CRA"], ["NAS_R_ant", "CRA"],
+  ["MAX_R_inf", "CRA"],
+];
+
+const AGE_CASES = [
+  {
+    age: AGE_CATEGORIES.CHILD,
+    mappings: CHILD_MAPPING_CASES,
+    links: [
+      ["OCC_L_lat_l", "OCC_R_lat_r"],
+      ["CRA_lat_l", "CRA_lat_r", "CRA_ant"],
+      ["MND", "MND_L", "MND_R"],
+    ],
+    independent: ["FEM_L2", "PEL_L3", "SAC_2", "OCC_L2_lat_l"],
+    ignored: [
+      "FEM_L2", "FEM_R3", "PEL_L3", "SAC_2",
+      "OCC_L2_lat_l", "RT2L", "RSU", "C3C",
+    ],
+    countedGroups: [
+      [["RT1L", "RIB_L1"], "RIB_L1"],
+      [["RT1R", "RIB_R1"], "RIB_R1"],
+      [["C1C", "C1N"], "VC1"],
+      [["C2C", "C2N"], "VC2"],
+      [["NAS_L", "OCC_L_lat_l", "OCC_R_lat_r"], "CRA"],
+    ],
+  },
+  {
+    age: AGE_CATEGORIES.INFANT,
+    mappings: INFANT_MAPPING_CASES,
+    links: [
+      ["TEM_L_ENDO", "TEM_L_EXO"],
+      ["TEM_R_ENDO", "TEM_R_EXO"],
+    ],
+    independent: [
+      "FEM_L2", "PEL_L3", "SAC_2", "MAN_L", "MAN_R",
+      "ST_MAN", "ST_STE", "C2_C1", "C2_C2",
+    ],
+    ignored: [
+      "FEM_L1", "FEM_L2", "PEL_L3", "SAC_2",
+      "ST_MAN", "ST_STE", "C3_C", "C3_RNA", "C3_LNA",
+    ],
+    countedGroups: [
+      [["RIB_T1_L", "RIB_L1"], "RIB_L1"],
+      [["RIB_T1_R", "RIB_R1"], "RIB_R1"],
+      [["C1_C", "C1_RNA", "C1_LNA"], "VC1"],
+      [["C2_C1", "C2_C2", "C2_RNA", "C2_LNA"], "VC2"],
+      [["OCC_squama", "PAR_L", "TEM_L_EXO"], "CRA"],
+      [["MAN_L", "MAN_R"], "MND"],
+    ],
+  },
+  {
+    age: AGE_CATEGORIES.ADOLESCENT,
+    mappings: ADOLESCENT_MAPPING_CASES,
+    links: [
+      ["CRA_lat_l", "CRA_lat_r", "CRA"],
+      ["NAS_L_lat_l", "NAS_L_ant"],
+      ["NAS_R_lat_r", "NAS_R_ant"],
+      ["MAX_R_lat_r", "MAX_R_inf", "MAX_R_ant"],
+      ["PAR_R_post", "PAR_R_lat_r", "PAR_R_ant"],
+      ["MND", "MND_L", "MND_R"],
+    ],
+    independent: ["FEM_L2", "PEL_L3", "SAC_2"],
+    ignored: ["FEM_L2", "FEM_R3", "PEL_L3", "SAC_2"],
+    countedGroups: [
+      [["CRA", "NAS_L_ant", "NAS_R_ant", "MAX_R_inf"], "CRA"],
+      [["MND", "MND_L", "MND_R"], "MND"],
+    ],
+  },
+];
+
+const NON_ADULT_SVG_IDS = new Set([
+  ...CHILD_MAPPING_CASES.map(([id]) => id),
+  ...INFANT_MAPPING_CASES.map(([id]) => id),
+  "CRA", "NAS",
+]);
+
+function svgDirectory(age) {
+  return fileURLToPath(new URL(
+    `../www/assets/skeletons/${age}/`,
+    import.meta.url
+  ));
+}
+
+function idsInSvg(content) {
+  // Bone ids may appear on <g>, <path>, <polygon>, etc.
+  return new Set(
+    [...content.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1])
+  );
+}
+
+function svgIdsInDirectory(directory) {
+  const ids = new Set();
+
+  for (const file of readdirSync(directory).filter((name) => name.endsWith(".svg"))) {
+    for (const id of idsInSvg(readFileSync(`${directory}/${file}`, "utf8"))) {
+      ids.add(id);
+    }
+  }
+
+  return ids;
+}
 
 beforeEach(() => {
   globalThis.indexedDB = new IDBFactory();
@@ -134,8 +266,9 @@ describe("element codes", () => {
     expect(elementCodeForBone(svgId)).toBeNull();
   });
 
-  it("CRA and MND are the only codes shared by several SVG ids", () => {
+  it("shares only the expected skull, mandible, first-rib and C1 / C2 codes", () => {
     const idsByCode = new Map();
+
     for (const [svgId, { code }] of ELEMENT_BY_SVG_ID) {
       idsByCode.set(code, [...(idsByCode.get(code) || []), svgId]);
     }
@@ -144,7 +277,10 @@ describe("element codes", () => {
       .filter(([, ids]) => ids.length > 1)
       .map(([code]) => code)
       .sort();
-    expect(shared).toEqual(["CRA", "MND"]);
+
+    expect(shared).toEqual([
+      "CRA", "MND", "RIB_L1", "RIB_R1", "VC1", "VC2",
+    ]);
   });
 
   it("labels the hand digit-1 phalanges as 'thumb', not 'hallux'", () => {
@@ -158,13 +294,18 @@ describe("element codes", () => {
 describe("linkedSvgIds", () => {
   it("links same-bone cranial views, not the whole skull", () => {
     const group = linkedSvgIds("PAR_R_post");
-    expect(group.sort()).toEqual(["PAR_R_ant", "PAR_R_lat_r", "PAR_R_post"].sort());
+
+    expect(group.sort()).toEqual(
+      ["PAR_R_ant", "PAR_R_lat_r", "PAR_R_post"].sort()
+    );
     expect(group).not.toContain("TEM_L_ant");
     expect(group).not.toContain("CRA_ant");
   });
 
   it("links mandible parts together", () => {
-    expect(linkedSvgIds("MND_L").sort()).toEqual(["MND", "MND_L", "MND_R"].sort());
+    expect(linkedSvgIds("MND_L").sort()).toEqual(
+      ["MND", "MND_L", "MND_R"].sort()
+    );
   });
 
   it("links CRA lateral / anterior views together", () => {
@@ -199,15 +340,11 @@ const adultSvgDir = fileURLToPath(
 
 describe.skipIf(!existsSync(adultSvgDir))("element codes vs the adult SVG assets", () => {
   it("every mapped SVG id exists in the adult SVG files", () => {
-    const ids = new Set();
+    const ids = svgIdsInDirectory(adultSvgDir);
 
-    for (const file of readdirSync(adultSvgDir).filter((name) => name.endsWith(".svg"))) {
-      const svg = readFileSync(`${adultSvgDir}/${file}`, "utf8");
-      // Bone ids may appear on <g>, <path>, <polygon>, etc.
-      for (const match of svg.matchAll(/\sid="([^"]+)"/g)) ids.add(match[1]);
-    }
+    const missing = [...ELEMENT_BY_SVG_ID.keys()]
+      .filter((id) => !NON_ADULT_SVG_IDS.has(id) && !ids.has(id));
 
-    const missing = [...ELEMENT_BY_SVG_ID.keys()].filter((id) => !ids.has(id));
     expect(missing).toEqual([]);
   });
 });
@@ -220,17 +357,27 @@ describe("countPresentElements", () => {
       [row("FEM_R", PRESENT_COMPLETE), row("FEM_L", PRESENT_FRAGMENTED)],
     ]);
 
-    expect(counts["FEM_R"]).toMatchObject({ count: 2, complete: 2, fragmented: 1 });
-    expect(counts["FEM_L"]).toMatchObject({ count: 0, complete: 0, fragmented: 1 });
+    expect(counts["FEM_R"]).toMatchObject({
+      count: 2, complete: 2, fragmented: 1,
+    });
+    expect(counts["FEM_L"]).toMatchObject({
+      count: 0, complete: 0, fragmented: 1,
+    });
   });
 
   it("does not count fragmented bones towards the total (client confirmed 27 Sep: fragmented means <50% present, inventory only, not MNI)", () => {
-    const { counts } = countPresentElements([[row("FEM_R", PRESENT_FRAGMENTED)]]);
-    expect(counts["FEM_R"]).toMatchObject({ count: 0, complete: 0, fragmented: 1 });
+    const { counts } = countPresentElements([
+      [row("FEM_R", PRESENT_FRAGMENTED)],
+    ]);
+
+    expect(counts["FEM_R"]).toMatchObject({
+      count: 0, complete: 0, fragmented: 1,
+    });
   });
 
   it("does not count absent bones", () => {
     const { counts } = countPresentElements([[row("FEM_R", ABSENT)]]);
+
     expect(counts["FEM_R"]).toBeUndefined();
   });
 
@@ -243,12 +390,19 @@ describe("countPresentElements", () => {
       ],
     ]);
 
-    expect(counts["CRA"]).toMatchObject({ count: 1, complete: 1, fragmented: 0 });
+    expect(counts["CRA"]).toMatchObject({
+      count: 1, complete: 1, fragmented: 0,
+    });
   });
 
   it("counts a skull as present when only one of its bones is marked", () => {
-    const { counts } = countPresentElements([[row("LAC_L_ant", PRESENT_COMPLETE)]]);
-    expect(counts["CRA"]).toMatchObject({ count: 1, complete: 1, fragmented: 0 });
+    const { counts } = countPresentElements([
+      [row("LAC_L_ant", PRESENT_COMPLETE)],
+    ]);
+
+    expect(counts["CRA"]).toMatchObject({
+      count: 1, complete: 1, fragmented: 0,
+    });
   });
 
   it("keeps the mandible and hyoid separate from the skull", () => {
@@ -260,7 +414,9 @@ describe("countPresentElements", () => {
   });
 
   it("does not count the ear ossicles as part of the skull", () => {
-    const { counts, ignoredBones } = countPresentElements([[row("MAL_L", PRESENT_COMPLETE)]]);
+    const { counts, ignoredBones } = countPresentElements([
+      [row("MAL_L", PRESENT_COMPLETE)],
+    ]);
 
     expect(counts).toEqual({});
     expect(ignoredBones).toEqual(["MAL_L"]);
@@ -274,7 +430,9 @@ describe("countPresentElements", () => {
       ],
     ]);
 
-    expect(counts["FEM_R"]).toMatchObject({ count: 1, complete: 1, fragmented: 0 });
+    expect(counts["FEM_R"]).toMatchObject({
+      count: 1, complete: 1, fragmented: 0,
+    });
   });
 
   it("reports bones that are not part of the counts, sorted and de-duplicated", () => {
@@ -293,7 +451,9 @@ describe("countPresentElements", () => {
       { presentStates: [PRESENT_COMPLETE] }
     );
 
-    expect(counts["FEM_R"]).toMatchObject({ count: 1, complete: 1, fragmented: 1 });
+    expect(counts["FEM_R"]).toMatchObject({
+      count: 1, complete: 1, fragmented: 1,
+    });
   });
 
   it("counts only complete elements by default", () => {
@@ -302,7 +462,9 @@ describe("countPresentElements", () => {
 });
 
 describe("summariseElementCounts", () => {
-  const entry = (code, count) => ({ code, label: code, count, complete: count, fragmented: 0 });
+  const entry = (code, count) => ({
+    code, label: code, count, complete: count, fragmented: 0,
+  });
 
   it("uses the highest present count as the MNI", () => {
     const { mni } = summariseElementCounts({
@@ -314,11 +476,14 @@ describe("summariseElementCounts", () => {
   });
 
   it("returns an MNI of 0 and no top elements when nothing is present", () => {
-    expect(summariseElementCounts({})).toEqual({ mni: 0, topElements: [] });
+    expect(summariseElementCounts({})).toEqual({
+      mni: 0, topElements: [],
+    });
   });
 
   it("ranks by count then code, and limits to the top 5", () => {
     const counts = {};
+
     for (const [code, count] of [
       ["TIB_R", 2],
       ["FEM_R", 5],
@@ -348,21 +513,26 @@ describe("summariseElementCounts", () => {
       MC2_R: entry("MC2_R", 1),
     };
 
-    expect(summariseElementCounts(counts).topElements.map((e) => e.code)).toEqual([
-      "MC2_R",
-      "MC10_R",
-    ]);
+    expect(summariseElementCounts(counts).topElements.map((e) => e.code))
+      .toEqual(["MC2_R", "MC10_R"]);
   });
 
   it("skips elements whose count is 0", () => {
-    const { topElements } = summariseElementCounts({ FEM_R: entry("FEM_R", 0) });
+    const { topElements } = summariseElementCounts({
+      FEM_R: entry("FEM_R", 0),
+    });
+
     expect(topElements).toEqual([]);
   });
 });
 
 describe("computeBoneStats", () => {
   it("includes individuals who have no bones recorded in the individual count", () => {
-    const stats = computeBoneStats([[row("FEM_R", PRESENT_COMPLETE)], []]);
+    const stats = computeBoneStats([
+      [row("FEM_R", PRESENT_COMPLETE)],
+      [],
+    ]);
+
     expect(stats.individualCount).toBe(2);
     expect(stats.mni).toBe(1);
   });
@@ -374,14 +544,22 @@ describe("getSiteBoneStats", () => {
     const individuals = [];
 
     for (let i = 1; i <= individualCount; i++) {
-      individuals.push(await createAccession({ siteId: site.id, accessionNumber: `SK${i}` }));
+      individuals.push(await createAccession({
+        siteId: site.id,
+        accessionNumber: `SK${i}`,
+      }));
     }
 
     return { site, individuals };
   }
 
   const mark = (individual, bone, state) =>
-    setZoneState({ accessionId: individual.id, bone, zone: bone, state });
+    setZoneState({
+      accessionId: individual.id,
+      bone,
+      zone: bone,
+      state,
+    });
 
   it("counts present elements across all individuals in the site", async () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 3);
@@ -417,21 +595,29 @@ describe("getSiteBoneStats", () => {
     const stats = await getSiteBoneStats(site.id);
 
     expect(stats.mni).toBe(1);
-    expect(stats.topElements[0]).toMatchObject({ code: "CRA", label: "Cranium", count: 1 });
+    expect(stats.topElements[0]).toMatchObject({
+      code: "CRA",
+      label: "Cranium",
+      count: 1,
+    });
   });
 
   it("returns an MNI of 0 for a site with individuals but nothing recorded", async () => {
     const { site } = await siteWithIndividuals("WES001", 2);
     const stats = await getSiteBoneStats(site.id);
 
-    expect(stats).toMatchObject({ individualCount: 2, mni: 0, topElements: [] });
+    expect(stats).toMatchObject({
+      individualCount: 2, mni: 0, topElements: [],
+    });
   });
 
   it("returns an MNI of 0 for a site with no individuals", async () => {
     const site = await createSite({ code: "WES001" });
     const stats = await getSiteBoneStats(site.id);
 
-    expect(stats).toMatchObject({ individualCount: 0, mni: 0, topElements: [] });
+    expect(stats).toMatchObject({
+      individualCount: 0, mni: 0, topElements: [],
+    });
   });
 
   it("updates when a bone state changes", async () => {
@@ -440,12 +626,15 @@ describe("getSiteBoneStats", () => {
 
     await mark(a, "FEM_R", PRESENT_COMPLETE);
     await mark(b, "FEM_R", PRESENT_COMPLETE);
+
     expect((await getSiteBoneStats(site.id)).mni).toBe(2);
 
     await mark(b, "FEM_R", ABSENT);
+
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
 
     await mark(b, "FEM_R", PRESENT_FRAGMENTED);
+
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
   });
 
@@ -454,31 +643,47 @@ describe("getSiteBoneStats", () => {
     const [a] = individuals;
 
     await mark(a, "FEM_R", PRESENT_COMPLETE);
+
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
 
-    await clearZoneState({ accessionId: a.id, bone: "FEM_R", zone: "FEM_R" });
+    await clearZoneState({
+      accessionId: a.id,
+      bone: "FEM_R",
+      zone: "FEM_R",
+    });
+
     expect((await getSiteBoneStats(site.id)).mni).toBe(0);
   });
 
   it("updates when an individual is deleted", async () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 3);
 
-    for (const individual of individuals) await mark(individual, "FEM_R", PRESENT_COMPLETE);
+    for (const individual of individuals) {
+      await mark(individual, "FEM_R", PRESENT_COMPLETE);
+    }
+
     expect((await getSiteBoneStats(site.id)).mni).toBe(3);
 
     await deleteAccession(individuals[0].id);
 
     const stats = await getSiteBoneStats(site.id);
+
     expect(stats.mni).toBe(2);
     expect(stats.individualCount).toBe(2);
   });
 
   it("updates when an individual is added", async () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 1);
+
     await mark(individuals[0], "FEM_R", PRESENT_COMPLETE);
+
     expect((await getSiteBoneStats(site.id)).mni).toBe(1);
 
-    const added = await createAccession({ siteId: site.id, accessionNumber: "SK99" });
+    const added = await createAccession({
+      siteId: site.id,
+      accessionNumber: "SK99",
+    });
+
     await mark(added, "FEM_R", PRESENT_COMPLETE);
 
     expect((await getSiteBoneStats(site.id)).mni).toBe(2);
@@ -488,7 +693,10 @@ describe("getSiteBoneStats", () => {
     const one = await siteWithIndividuals("WES001", 2);
     const two = await siteWithIndividuals("WES002", 1);
 
-    for (const individual of one.individuals) await mark(individual, "FEM_R", PRESENT_COMPLETE);
+    for (const individual of one.individuals) {
+      await mark(individual, "FEM_R", PRESENT_COMPLETE);
+    }
+
     await mark(two.individuals[0], "FEM_R", PRESENT_COMPLETE);
 
     expect((await getSiteBoneStats(one.site.id)).mni).toBe(2);
@@ -497,6 +705,7 @@ describe("getSiteBoneStats", () => {
 
   it("ignores bones that are not counted, without failing", async () => {
     const { site, individuals } = await siteWithIndividuals("WES001", 1);
+
     await mark(individuals[0], "RIB_R7", PRESENT_COMPLETE);
     await mark(individuals[0], "VT4", PRESENT_COMPLETE);
 
@@ -508,6 +717,199 @@ describe("getSiteBoneStats", () => {
   });
 
   it("throws NotFoundError for an unknown site", async () => {
-    await expect(getSiteBoneStats("missing-site")).rejects.toBeInstanceOf(NotFoundError);
+    await expect(getSiteBoneStats("missing-site"))
+      .rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+// The same checks run under separate Child, Infant and Adolescent sections.
+describe.each(AGE_CASES)("$age bone IDs, skull links and SVG files", ({
+  age, mappings, links, independent, ignored, countedGroups,
+}) => {
+  const directory = svgDirectory(age);
+
+  it.each([
+    ["FEM_R", "FEM_R"], ["PEL_L", "PEL_L"], ["MC1_R", "MC1_R"],
+    ...mappings,
+  ])("maps %s to %s", (id, code) => {
+    expect(elementCodeForBone(id)).toBe(code);
+  });
+
+  it.each(links.map((ids) => [ids]))("links the same-bone views %j", (ids) => {
+    for (const id of ids) {
+      expect(linkedSvgIds(id, age).sort()).toEqual([...ids].sort());
+    }
+  });
+
+  if (age === AGE_CATEGORIES.CHILD) {
+    it("keeps shared skull links the same as Adult", () => {
+      for (const id of ["PAR_R_post", "MND_L", "CRA_ant", "SPH_inf"]) {
+        expect(linkedSvgIds(id, age))
+          .toEqual(linkedSvgIds(id, AGE_CATEGORIES.ADULT));
+      }
+    });
+  }
+
+  it.each(independent)("keeps %s independent", (id) => {
+    expect(linkedSvgIds(id, age)).toEqual([id]);
+  });
+
+  it.each(ignored)("does not count visual part %s", (id) => {
+    expect(elementCodeForBone(id)).toBeNull();
+  });
+
+  it.skipIf(!existsSync(directory))("finds its mapped IDs and linked views in its SVGs", () => {
+    const ids = svgIdsInDirectory(directory);
+    const craniumIds = idsInSvg(
+      readFileSync(`${directory}/cranium.svg`, "utf8")
+    );
+
+    expect(
+      mappings.map(([id]) => id).filter((id) => !ids.has(id))
+    ).toEqual([]);
+
+    for (const group of links) {
+      expect(group.filter((id) => !craniumIds.has(id))).toEqual([]);
+    }
+
+    if (age === AGE_CATEGORIES.ADOLESCENT) {
+      for (const id of craniumIds) {
+        if (!ELEMENT_BY_SVG_ID.has(id)) continue;
+
+        expect(
+          linkedSvgIds(id, age).filter((linked) => !craniumIds.has(linked))
+        ).toEqual([]);
+      }
+    }
+  });
+
+  it.each(countedGroups)("counts representations %j once per individual as %s", (ids, code) => {
+    const { counts } = countPresentElements([
+      ids.map((id) => row(id, PRESENT_COMPLETE)),
+      [row(ids[0], PRESENT_COMPLETE)],
+    ]);
+
+    expect(counts[code]).toMatchObject({
+      count: 2, complete: 2, fragmented: 0,
+    });
+  });
+
+  it.each(countedGroups)("counts any one Present representation in %j as %s", (ids, code) => {
+    for (const presentId of ids) {
+      const stats = computeBoneStats([ids.map((id) =>
+        row(id, id === presentId ? PRESENT_COMPLETE : ABSENT)
+      )]);
+
+      expect(stats.counts[code]).toMatchObject({
+        count: 1, complete: 1, fragmented: 0,
+      });
+      expect(stats.mni).toBe(1);
+    }
+  });
+
+  it.each(countedGroups)("gives Present priority and excludes Fragmented for %j", (ids, code) => {
+    const first = row(ids[0], PRESENT_FRAGMENTED);
+    const second = row(ids[1], PRESENT_COMPLETE);
+
+    const { counts } = countPresentElements([
+      [first, second],
+      [second, first],
+    ]);
+
+    expect(counts[code]).toMatchObject({
+      count: 2, complete: 2, fragmented: 0,
+    });
+
+    const fragmented = computeBoneStats([
+      ids.map((id) => row(id, PRESENT_FRAGMENTED)),
+    ]);
+
+    expect(fragmented.counts[code]).toMatchObject({
+      count: 0, fragmented: 1,
+    });
+    expect(fragmented.mni).toBe(0);
+
+    expect(
+      computeBoneStats([ids.map((id) => row(id, ABSENT))]).counts
+    ).toEqual({});
+  });
+
+  it("counts the base femur but excludes numbered parts", () => {
+    const present = computeBoneStats([[
+      row("FEM_L", PRESENT_COMPLETE),
+      row("FEM_L2", ABSENT),
+      row("FEM_L3", ABSENT),
+    ]]);
+
+    expect(present.counts["FEM_L"].count).toBe(1);
+    expect(present.mni).toBe(1);
+
+    const partsOnly = computeBoneStats([[
+      row("FEM_L", ABSENT),
+      ...ignored.map((id) => row(id, PRESENT_COMPLETE)),
+    ]]);
+
+    expect(partsOnly.counts).toEqual({});
+    expect(partsOnly.mni).toBe(0);
+    expect(partsOnly.ignoredBones).toEqual([...ignored].sort());
+  });
+});
+
+describe("mixed-age site", () => {
+  it("combines all four ages and counts each element once per individual", async () => {
+    const site = await createSite({ code: "ALLAGES001" });
+
+    const cases = [
+      [AGE_CATEGORIES.ADULT, ["RIB_L1", "VC1", "VC2", "CRA_ant"]],
+      [AGE_CATEGORIES.CHILD, ["RT1L", "C1C", "C1N", "C2C", "NAS_L"]],
+      [AGE_CATEGORIES.INFANT, [
+        "RIB_T1_L", "C1_C", "C1_RNA", "C2_C1", "C2_C2", "OCC_squama",
+      ]],
+      [AGE_CATEGORIES.ADOLESCENT, [
+        "RIB_L1", "VC1", "VC2", "CRA", "NAS_L_ant", "MAX_R_inf",
+      ]],
+    ];
+
+    const individuals = [];
+
+    for (const [age, ids] of cases) {
+      const individual = await createAccession({
+        siteId: site.id,
+        accessionNumber: `${age}-1`,
+        ageCategory: age,
+      });
+
+      individuals.push(individual);
+
+      for (const bone of ids) {
+        await setZoneState({
+          accessionId: individual.id,
+          bone,
+          zone: bone,
+          state: PRESENT_COMPLETE,
+        });
+      }
+    }
+
+    const stats = await getSiteBoneStats(site.id);
+
+    expect(stats.individualCount).toBe(4);
+    expect(stats.mni).toBe(4);
+
+    for (const code of ["RIB_L1", "VC1", "VC2", "CRA"]) {
+      expect(stats.counts[code].count).toBe(4);
+    }
+
+    for (const [index, bone] of ["C2_C1", "C2_C2"].entries()) {
+      await setZoneState({
+        accessionId: individuals[2].id,
+        bone,
+        zone: bone,
+        state: ABSENT,
+      });
+
+      expect((await getSiteBoneStats(site.id)).counts["VC2"].count)
+        .toBe(index === 0 ? 4 : 3);
+    }
   });
 });
