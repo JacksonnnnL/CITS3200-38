@@ -37,6 +37,12 @@ export function stateToCode(state) {
 // Build CSV Rows
 // ========================================
 
+// ELEMENT_BY_SVG_ID contains the client MNI mapping.
+// Bones recorded for inventory purposes but excluded from MNI
+// may therefore have blank element_code / element_label fields.
+// A future export-data refactor could introduce canonical bone
+// metadata without changing the MNI calculation.
+
 export function buildExportRows(zoneStates) {
 
     return zoneStates.map(zoneState => {
@@ -45,7 +51,8 @@ export function buildExportRows(zoneStates) {
             ELEMENT_BY_SVG_ID.get(zoneState.bone);
 
         return {
-            bone_id: zoneState.bone,
+            bone_id:
+                zoneState.bone,
 
             element_code:
                 boneInfo?.code || '',
@@ -53,17 +60,8 @@ export function buildExportRows(zoneStates) {
             element_label:
                 boneInfo?.label || '',
 
-            side:
-                zoneState.side || '',
-
-            zone:
-                zoneState.zone || '',
-
             state_code:
-                stateToCode(zoneState.state),
-
-            state:
-                zoneState.state
+                stateToCode(zoneState.state)
         };
     });
 }
@@ -103,10 +101,7 @@ export function rowsToCsv(rows) {
         'bone_id',
         'element_code',
         'element_label',
-        'side',
-        'zone',
-        'state_code',
-        'state'
+        'state_code'
     ];
 
     const lines = [
