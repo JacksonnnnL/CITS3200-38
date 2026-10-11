@@ -30,6 +30,10 @@ vi.mock("../www/js/data.js", async (importOriginal) => ({
 
 const AGES = ["adult", "child", "infant", "adolescent"];
 const PART_AGES = ["child", "infant", "adolescent"];
+const PAGE_HTML = readFileSync(
+    new URL("../www/skeletons_selection.html", import.meta.url),
+    "utf8"
+);
 
 const GREEN = "#2e7d32";
 const ORANGE = "#ed6c02";
@@ -72,16 +76,34 @@ function shape(id) {
     return element(id).querySelector("path");
 }
 
-function chooseState(state) {
+async function chooseState(state) {
     document.querySelector(`[data-state="${state}"]`).click();
-}
-
-async function markAll() {
-    element("all-present-button").click();
 
     await vi.waitFor(() => {
         expect(element("all-present-button").disabled).toBe(false);
     });
+}
+
+function savedStates() {
+    return Object.fromEntries(
+        [...mocks.rows].map(([id, row]) => [id, row.state])
+    );
+}
+
+async function confirmAction() {
+    expect(element("state-confirmation-modal").classList).toContain("open");
+    element("confirm-state-action-button").click();
+
+    await vi.waitFor(() => {
+        expect(element("state-confirmation-modal").classList).not.toContain("open");
+        expect(document.querySelector(".app").hasAttribute("inert")).toBe(false);
+        expect(element("all-present-button").disabled).toBe(false);
+    });
+}
+
+async function markAll() {
+    element("all-present-button").click();
+    await confirmAction();
 }
 
 function touch(type, points, target = element("skeleton-select-container")) {
@@ -125,24 +147,7 @@ async function openPage(
     svgText = content;
 
     dom = new JSDOM(
-        `<!DOCTYPE html><html><body>
-            <span id="accession-display"></span>
-            <span id="site-display"></span>
-            <button id="back-to-overview-button"></button>
-            <div id="segment-tabs"></div>
-            <div id="selected-segment-name"></div>
-            <button id="all-present-button" class="segment-tab" disabled></button>
-            <div id="skeleton-select-container"></div>
-            <div id="details-box" style="display:none">
-                <button id="details-close"></button>
-                <div id="detail-bone-name"></div>
-                <span id="detail-status-text"></span>
-                <span id="detail-status-dot"></span>
-                <button class="state-btn" data-state="present-complete"></button>
-                <button class="state-btn" data-state="present-fragmented"></button>
-                <button class="state-btn" data-state="absent"></button>
-            </div>
-        </body></html>`,
+        PAGE_HTML,
         {
             url: `http://localhost/skeletons_selection.html?accessionId=testid&segment=${segment}`
         }
@@ -155,7 +160,8 @@ async function openPage(
 
     vi.stubGlobal("window", {
         location: pageLocation,
-        MouseEvent: dom.window.MouseEvent
+        MouseEvent: dom.window.MouseEvent,
+        addEventListener: dom.window.addEventListener.bind(dom.window)
     });
 
     vi.stubGlobal("document", dom.window.document);
@@ -351,7 +357,7 @@ describe("selection navigation", () => {
             new window.MouseEvent("click", { bubbles: true })
         );
 
-        chooseState("present-fragmented");
+        await chooseState("present-fragmented");
 
         await vi.waitFor(() => {
             expect(element("detail-status-text").textContent)
@@ -421,7 +427,7 @@ describe.each(PART_AGES)("%s bone selection", age => {
 
             expect(element("detail-bone-name").textContent).toBe("FEM_L2");
 
-            chooseState(state);
+            await chooseState(state);
 
             await vi.waitFor(() => {
                 expect(mocks.setZoneState).toHaveBeenCalledWith({
@@ -463,7 +469,7 @@ describe.each(PART_AGES)("%s bone selection", age => {
             new window.MouseEvent("click", { bubbles: true })
         );
 
-        chooseState("present-complete");
+        await chooseState("present-complete");
 
         await vi.waitFor(() => {
             expect(mocks.rows.has("FEM_L")).toBe(true);
@@ -480,13 +486,13 @@ describe.each(PART_AGES)("%s bone selection", age => {
             new window.MouseEvent("click", { bubbles: true })
         );
 
-        chooseState("present-complete");
+        await chooseState("present-complete");
 
         await vi.waitFor(() => {
             expect(mocks.rows.has("FEM_L")).toBe(true);
         });
 
-        chooseState("present-complete");
+        await chooseState("present-complete");
 
         await vi.waitFor(() => {
             expect(mocks.clearZoneState).toHaveBeenCalledWith({
@@ -514,7 +520,7 @@ describe.each(PART_AGES)("%s bone selection", age => {
             new window.MouseEvent("click", { bubbles: true })
         );
 
-        chooseState("absent");
+        await chooseState("absent");
 
         await vi.waitFor(() => {
             expect(mocks.rows.has("FEM_L2")).toBe(true);
@@ -558,7 +564,7 @@ describe("Child SVG preparation", () => {
             new window.MouseEvent("click", { bubbles: true })
         );
 
-        chooseState("present-complete");
+        await chooseState("present-complete");
 
         await vi.waitFor(() => {
             expect(mocks.rows.has("RSU")).toBe(true);
@@ -583,7 +589,7 @@ describe("linked views and All Present", () => {
         expect(shape("OCC_R_lat_r").style.stroke).toBe(HIGHLIGHT);
         expect(shape("PAR_R_ant").style.stroke).toBe("");
 
-        chooseState("absent");
+        await chooseState("absent");
 
         await vi.waitFor(() => {
             expect(mocks.setZoneState).toHaveBeenCalledTimes(2);
@@ -592,7 +598,7 @@ describe("linked views and All Present", () => {
         expect(shape("OCC_R_lat_r").style.fill).toBe(GREY);
         expect(shape("PAR_R_ant").style.fill).toBe("transparent");
 
-        chooseState("absent");
+        await chooseState("absent");
 
         await vi.waitFor(() => {
             expect(mocks.clearZoneState).toHaveBeenCalledTimes(2);
@@ -644,7 +650,7 @@ describe("linked views and All Present", () => {
             new window.MouseEvent("click", { bubbles: true })
         );
 
-        chooseState("present-complete");
+        await chooseState("present-complete");
 
         await vi.waitFor(() => {
             expect(mocks.setZoneState).toHaveBeenCalledTimes(1);
@@ -823,7 +829,7 @@ describe("Infant and Adolescent linked views", () => {
             }
             expect(shape(other).style.stroke).toBe("");
 
-            chooseState("present-fragmented");
+            await chooseState("present-fragmented");
 
             await vi.waitFor(() => {
                 expect(element("detail-status-text").textContent)
@@ -846,7 +852,7 @@ describe("Infant and Adolescent linked views", () => {
             element(ids[0]).dispatchEvent(
                 new window.MouseEvent("click", { bubbles: true })
             );
-            chooseState("present-fragmented");
+            await chooseState("present-fragmented");
 
             await vi.waitFor(() => {
                 expect(element("detail-status-text").textContent).toBe("Unmarked");
@@ -869,7 +875,7 @@ describe("Infant and Adolescent linked views", () => {
             element(id).dispatchEvent(
                 new window.MouseEvent("click", { bubbles: true })
             );
-            chooseState("present-complete");
+            await chooseState("present-complete");
 
             await vi.waitFor(() => {
                 expect(element("detail-status-text").textContent).toBe("Present");
@@ -906,7 +912,7 @@ describe("updated Infant axial groups", () => {
                 new window.MouseEvent("click", { bubbles: true })
             );
             expect(element("detail-bone-name").textContent).toBe(id);
-            chooseState(state);
+            await chooseState(state);
 
             await vi.waitFor(() => {
                 expect(mocks.rows.get(id)?.state).toBe(state);
@@ -937,7 +943,7 @@ describe("selection zoom", () => {
 
         const viewer = element("skeleton-select-container");
         const reset = element("reset-zoom-button");
-        expect(element("all-present-button").nextElementSibling).toBe(reset);
+        expect(element("undo-change-button").nextElementSibling).toBe(reset);
         expect(reset.className).toBe("segment-tab");
         expect(reset.textContent).toBe("Reset Zoom");
         expect(drawing().style.width).toBe("300px");
@@ -947,7 +953,7 @@ describe("selection zoom", () => {
         expect(drawing().style.width).toBe("600px");
         expect(drawing().style.height).toBe("600px");
         expect(viewer.scrollLeft).toBeCloseTo(100);
-        expect(viewer.scrollTop).toBeCloseTo(150);  
+        expect(viewer.scrollTop).toBeCloseTo(150);
 
         reset.click();
         pinch(10);
@@ -1007,7 +1013,7 @@ describe("selection zoom", () => {
         expect(element("details-box").style.display).toBe("block");
         expect(element("detail-bone-name").textContent).toBe("FEM_L");
 
-        chooseState("present-fragmented");
+        await chooseState("present-fragmented");
         await vi.waitFor(() => {
             expect(mocks.rows.get("FEM_L")?.state).toBe("present-fragmented");
         });
@@ -1038,5 +1044,289 @@ describe("selection zoom", () => {
         expect(element("reset-zoom-button").classList).not.toContain("active");
         expect(mocks.setZoneState).not.toHaveBeenCalled();
         expect(mocks.clearZoneState).not.toHaveBeenCalled();
+    });
+});
+
+describe("selection action buttons", () => {
+    it("keeps all four buttons in a separate row below the selected heading", async () => {
+        await openPage();
+
+        const row = document.querySelector(".selection-actions");
+        expect(row.previousElementSibling).toBe(element("selected-segment-name"));
+        expect(row.parentElement.className).toBe("selected-row");
+        expect([...row.querySelectorAll("button")].map(button => button.id))
+            .toEqual([
+                "all-present-button",
+                "reset-states-button",
+                "undo-change-button",
+                "reset-zoom-button"
+            ]);
+        expect(element("reset-states-button").textContent).toBe("Reset States");
+        expect(element("undo-change-button").textContent).toBe("Undo Change");
+        expect(element("undo-change-button").disabled).toBe(true);
+        expect(document.querySelector(".app").contains(
+            element("state-confirmation-modal")
+        )).toBe(false);
+        expect(element("cancel-state-action-button").classList)
+            .toContain("modal-button-cancel");
+        expect(element("confirm-state-action-button").classList)
+            .toContain("modal-button-save");
+    });
+
+    it.each(AGES)("confirms All Present and restores the previous %s states with one undo", async age => {
+        mocks.rows.set("FEM_L", { bone: "FEM_L", state: "present-fragmented" });
+        mocks.rows.set("TIB_L", { bone: "TIB_L", state: "absent" });
+        mocks.rows.set("FIB_L", { bone: "FIB_L", state: "present-complete" });
+        mocks.rows.set("FEM_R", { bone: "FEM_R", state: "absent" });
+        const ids = ["FEM_L", "TIB_L", "FIB_L", "PAT_L"];
+        await openPage(age, "left-lower", bones(ids));
+        const before = savedStates();
+
+        element("all-present-button").click();
+        expect(element("state-confirmation-message").textContent).toBe(
+            "Are you sure you want to mark all bones in this segment as Present?"
+        );
+        expect(savedStates()).toEqual(before);
+        expect(mocks.setZoneState).not.toHaveBeenCalled();
+        element("cancel-state-action-button").click();
+        expect(element("state-confirmation-modal").classList).not.toContain("open");
+        expect(savedStates()).toEqual(before);
+        expect(element("undo-change-button").disabled).toBe(true);
+
+        await markAll();
+        for (const id of ids) {
+            expect(mocks.rows.get(id)?.state).toBe("present-complete");
+            expect(shape(id).style.fill).toBe(GREEN);
+        }
+        expect(mocks.rows.get("FEM_R").state).toBe("absent");
+        expect(element("undo-change-button").disabled).toBe(false);
+
+        element("undo-change-button").click();
+        expect(element("state-confirmation-message").textContent).toBe(
+            "Are you sure you want to undo the last change?"
+        );
+        element("cancel-state-action-button").click();
+        expect(mocks.rows.get("FEM_L").state).toBe("present-complete");
+        expect(element("undo-change-button").disabled).toBe(false);
+
+        element("undo-change-button").click();
+        await confirmAction();
+        expect(savedStates()).toEqual(before);
+        expect(shape("FEM_L").style.fill).toBe(ORANGE);
+        expect(shape("TIB_L").style.fill).toBe(GREY);
+        expect(shape("FIB_L").style.fill).toBe(GREEN);
+        expect(shape("PAT_L").style.fill).toBe("transparent");
+        expect(element("undo-change-button").disabled).toBe(true);
+        element("undo-change-button").click();
+        expect(element("state-confirmation-modal").classList).not.toContain("open");
+        expect(savedStates()).toEqual(before);
+    });
+
+    it.each(AGES)("confirms Reset States and restores the cleared %s states together", async age => {
+        mocks.rows.set("FEM_L", { bone: "FEM_L", state: "present-complete" });
+        mocks.rows.set("TIB_L", { bone: "TIB_L", state: "present-fragmented" });
+        mocks.rows.set("FIB_L", { bone: "FIB_L", state: "absent" });
+        mocks.rows.set("FEM_R", { bone: "FEM_R", state: "absent" });
+        const ids = ["FEM_L", "TIB_L", "FIB_L", "PAT_L"];
+        await openPage(age, "left-lower", bones(ids));
+        const before = savedStates();
+        element("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+
+        element("reset-states-button").click();
+        expect(element("state-confirmation-message").textContent).toBe(
+            "Are you sure you want to clear all bone states in this segment to Unmarked?"
+        );
+        element("cancel-state-action-button").click();
+        expect(savedStates()).toEqual(before);
+        expect(mocks.clearZoneState).not.toHaveBeenCalled();
+
+        element("reset-states-button").click();
+        await confirmAction();
+        for (const id of ids) {
+            expect(mocks.rows.has(id)).toBe(false);
+            expect(shape(id).style.fill).toBe("transparent");
+        }
+        expect(element("detail-status-text").textContent).toBe("Unmarked");
+        expect(mocks.rows.get("FEM_R").state).toBe("absent");
+        expect(element("undo-change-button").disabled).toBe(false);
+
+        element("undo-change-button").click();
+        await confirmAction();
+        expect(savedStates()).toEqual(before);
+        expect(element("detail-status-text").textContent).toBe("Present");
+        expect(shape("FEM_L").style.fill).toBe(GREEN);
+        expect(shape("TIB_L").style.fill).toBe(ORANGE);
+        expect(shape("FIB_L").style.fill).toBe(GREY);
+        expect(element("undo-change-button").disabled).toBe(true);
+    });
+});
+
+describe("Undo Change", () => {
+    it.each(AGES)("restores only the latest individual %s change and allows a new undo after another change", async age => {
+        await openPage(age, "left-lower");
+        element("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+
+        await chooseState("present-complete");
+        await chooseState("absent");
+        element("undo-change-button").click();
+        await confirmAction();
+        expect(mocks.rows.get("FEM_L").state).toBe("present-complete");
+        expect(shape("FEM_L").style.fill).toBe(GREEN);
+        expect(element("detail-status-text").textContent).toBe("Present");
+        expect(element("undo-change-button").disabled).toBe(true);
+
+        await chooseState("present-complete");
+        expect(mocks.rows.has("FEM_L")).toBe(false);
+        expect(element("undo-change-button").disabled).toBe(false);
+        element("undo-change-button").click();
+        await confirmAction();
+        expect(mocks.rows.get("FEM_L").state).toBe("present-complete");
+        expect(element("undo-change-button").disabled).toBe(true);
+    });
+
+    it.each(PART_AGES)("restores a %s part without changing its parent", async age => {
+        mocks.rows.set("FEM_L", { bone: "FEM_L", state: "present-complete" });
+        await openPage(age, "left-lower", svg(`
+            <g id="FEM_L">
+                <path id="parent-shape" />
+                <g id="FEM_L2"><path /></g>
+            </g>
+        `));
+        shape("FEM_L2").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        await chooseState("absent");
+        element("undo-change-button").click();
+        await confirmAction();
+
+        expect(mocks.rows.has("FEM_L2")).toBe(false);
+        expect(shape("FEM_L2").style.fill).toBe("transparent");
+        expect(mocks.rows.get("FEM_L").state).toBe("present-complete");
+        expect(element("parent-shape").style.fill).toBe(GREEN);
+    });
+
+    it.each([
+        ["adult", ["PAR_R_post", "PAR_R_lat_r", "PAR_R_ant"]],
+        ["child", ["OCC_L_lat_l", "OCC_R_lat_r"]],
+        ["infant", ["TEM_L_ENDO", "TEM_L_EXO"]],
+        ["adolescent", ["CRA", "CRA_lat_l", "CRA_lat_r"]]
+    ])("clears and restores the separate previous states of %s linked views", async (age, ids) => {
+        mocks.rows.set(ids[0], { bone: ids[0], state: "absent" });
+        const before = savedStates();
+        await openPage(age, "cranium", bones(ids));
+
+        await markAll();
+        element("undo-change-button").click();
+        await confirmAction();
+        expect(savedStates()).toEqual(before);
+        expect(shape(ids[0]).style.fill).toBe(GREY);
+        for (const id of ids.slice(1)) {
+            expect(shape(id).style.fill).toBe("transparent");
+        }
+
+        element("reset-states-button").click();
+        await confirmAction();
+        for (const id of ids) {
+            expect(mocks.rows.has(id)).toBe(false);
+            expect(shape(id).style.fill).toBe("transparent");
+        }
+        element("undo-change-button").click();
+        await confirmAction();
+        expect(savedStates()).toEqual(before);
+    });
+
+    it("keeps the previous undo when a confirmed action changes no states", async () => {
+        await openPage();
+        element("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        await chooseState("present-complete");
+        mocks.setZoneState.mockClear();
+        await markAll();
+
+        expect(mocks.setZoneState).not.toHaveBeenCalled();
+        expect(element("undo-change-button").disabled).toBe(false);
+        element("undo-change-button").click();
+        await confirmAction();
+        expect(mocks.rows.has("FEM_L")).toBe(false);
+        expect(element("undo-change-button").disabled).toBe(true);
+    });
+
+    it("clears undo when switching segments, leaving or reopening without clearing saved states", async () => {
+        await openPage();
+        element("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        await chooseState("absent");
+        document.querySelector('#segment-tabs [data-segment="pelvis"]').click();
+        await vi.waitFor(() => {
+            expect(element("skeleton-select-container").dataset.segment).toBe("pelvis");
+            expect(element("all-present-button").disabled).toBe(false);
+        });
+        expect(element("undo-change-button").disabled).toBe(true);
+        expect(mocks.rows.get("FEM_L").state).toBe("absent");
+
+        element("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        await chooseState("present-fragmented");
+        dom.window.dispatchEvent(new dom.window.Event("pagehide"));
+        expect(element("undo-change-button").disabled).toBe(true);
+        expect(mocks.rows.get("FEM_L").state).toBe("present-fragmented");
+
+        await openPage();
+        expect(shape("FEM_L").style.fill).toBe(ORANGE);
+        expect(element("undo-change-button").disabled).toBe(true);
+    });
+});
+
+describe("confirmation window", () => {
+    it.each([
+        ["all-present-button", "mark all bones"],
+        ["reset-states-button", "clear all bone states"],
+        ["undo-change-button", "undo the last change"]
+    ])("blocks background controls while confirming %s", async (id, message) => {
+        await openPage("child", "left-lower", bones(["FEM_L", "TIB_L"]));
+        element("FEM_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        await chooseState("absent");
+        pinch(2);
+        const before = savedStates();
+        const width = drawing().style.width;
+        const fetches = fetchMock.mock.calls.length;
+        const location = pageLocation.href;
+
+        element(id).click();
+        expect(element("state-confirmation-message").textContent).toContain(message);
+        expect(element("state-confirmation-modal").getAttribute("aria-hidden"))
+            .toBe("false");
+        expect(document.querySelector(".app").hasAttribute("inert")).toBe(true);
+        expect(document.activeElement).toBe(element("cancel-state-action-button"));
+
+        element("TIB_L").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+        document.querySelector('[data-state="present-complete"]').click();
+        document.querySelector('#segment-tabs [data-segment="pelvis"]').click();
+        element("back-to-overview-button").click();
+        element("reset-zoom-button").click();
+        pinch(3);
+        expect(element("detail-bone-name").textContent).toBe("FEM_L");
+        expect(savedStates()).toEqual(before);
+        expect(fetchMock).toHaveBeenCalledTimes(fetches);
+        expect(pageLocation.href).toBe(location);
+        expect(drawing().style.width).toBe(width);
+
+        element("cancel-state-action-button").click();
+        expect(document.querySelector(".app").hasAttribute("inert")).toBe(false);
+        expect(element("state-confirmation-modal").getAttribute("aria-hidden"))
+            .toBe("true");
+        expect(document.activeElement).toBe(element(id));
+        expect(element("undo-change-button").disabled).toBe(false);
     });
 });
