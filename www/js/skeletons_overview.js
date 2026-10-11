@@ -622,6 +622,7 @@ exportJpegCheckbox?.addEventListener(
 );
 
 
+
 // ========================================
 // Export clicking interaction
 // ========================================
@@ -636,54 +637,61 @@ exportConfirmButton?.addEventListener(
         const exportJpeg =
             exportJpegCheckbox.checked;
 
+        try {
 
-        const baseFileName =
-            `${safeFileName(currentSite.code)}_` +
-            `${safeFileName(currentAccession.accessionNumber)}`;
+            const baseFileName =
+                `${safeFileName(currentSite.code)}_` +
+                `${safeFileName(currentAccession.accessionNumber)}`;
 
+            const svgElement =
+                document.querySelector(
+                    '#skeleton-board svg'
+                );
 
-        const svgElement =
-            document.querySelector(
-                '#skeleton-board svg'
-            );
+            // Both selected -> ZIP
+            if (exportCsv && exportJpeg) {
 
+                await downloadIndividualZip(
+                    accessionId,
+                    svgElement,
+                    baseFileName
+                );
 
-        // Both selected -> ZIP
-        if (exportCsv && exportJpeg) {
+            }
 
-            await downloadIndividualZip(
-                accessionId,
-                svgElement,
-                baseFileName
+            // CSV only
+            else if (exportCsv) {
+
+                await downloadIndividualCsv(
+                    accessionId,
+                    `${baseFileName}_data.csv`
+                );
+
+            }
+
+            // JPEG only
+            else if (exportJpeg) {
+
+                await downloadSkeletonJpeg(
+                    svgElement,
+                    `${baseFileName}_skeleton.jpg`
+                );
+
+            }
+
+            closeExportModal();
+
+        } catch (error) {
+
+            console.error('Export failed:', error);
+
+            alert(
+                `Export failed: ${error.message}`
             );
 
         }
-
-        // CSV only
-        else if (exportCsv) {
-
-            await downloadIndividualCsv(
-                accessionId,
-                `${baseFileName}_data.csv`
-            );
-
-        }
-
-        // JPEG only
-        else if (exportJpeg) {
-
-            await downloadSkeletonJpeg(
-                svgElement,
-                `${baseFileName}_skeleton.jpg`
-            );
-
-        }
-
-
-        closeExportModal();
     }
 );
-
 
 // ========================================
 // Start

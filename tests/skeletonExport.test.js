@@ -32,7 +32,7 @@ describe("stateToCode", () => {
     });
 
 
-    it("converts fragmented to 1", () => {
+    it("converts fragmented to 2", () => {
 
         expect(
             stateToCode(
@@ -42,7 +42,7 @@ describe("stateToCode", () => {
     });
 
 
-    it("converts complete to 2", () => {
+    it("converts complete to 1", () => {
 
         expect(
             stateToCode(

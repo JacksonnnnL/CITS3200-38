@@ -304,6 +304,7 @@ function downloadBlob(blob, fileName) {
     URL.revokeObjectURL(url);
 }
 
+
 // ========================================
 // Download CSV + JPEG as ZIP
 // ========================================
@@ -314,9 +315,15 @@ export async function downloadIndividualZip(
     baseFileName = 'osteomap-export'
 ) {
 
-    // Create the ZIP container
-    const zip = new JSZip();
+    // Check whether JSZip is available
+    if (typeof window.JSZip !== 'function') {
+        throw new Error(
+            'ZIP export unavailable: JSZip could not be loaded.'
+        );
+    }
 
+    // Create the ZIP container
+    const zip = new window.JSZip();
 
     // Create both export files as Blobs
     const csvBlob =
@@ -324,7 +331,6 @@ export async function downloadIndividualZip(
 
     const jpegBlob =
         await createSkeletonJpegBlob(svgElement);
-
 
     // Add the files to the ZIP
     zip.file(
@@ -337,13 +343,11 @@ export async function downloadIndividualZip(
         jpegBlob
     );
 
-
     // Generate the completed ZIP as a Blob
     const zipBlob =
         await zip.generateAsync({
             type: 'blob'
         });
-
 
     // Download one ZIP file
     downloadBlob(
