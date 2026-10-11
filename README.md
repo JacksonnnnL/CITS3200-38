@@ -4,7 +4,7 @@ OsteoMap is a digital skeletal inventory application developed as part of the **
 
 The application is designed to assist researchers and anthropologists with recording and visualising the preservation of human skeletal remains. It replaces traditional paper-based skeletal inventory recording with an interactive digital interface where users can manage archaeological sites, individuals, and skeletal preservation records.
 
-OsteoMap is designed as a **mobile-friendly Progressive Web Application (PWA)** with local data storage, allowing skeletal records to be created and accessed without relying on cloud-based storage.
+OsteoMap is designed as an **offline-capable Android application (using web technologies)** with local data storage, allowing skeletal records to be created and accessed without relying on cloud-based storage.
 
 ---
 
@@ -263,8 +263,8 @@ Preservation states are represented numerically in exported skeletal data:
 | Preservation State | Export Code |
 | ------------------ | ----------: |
 | Absent             |           0 |
-| Fragmented         |           1 |
-| Present / Complete |           2 |
+| Fragmented         |           2 |
+| Present / Complete |           1 |
 
 These codes allow exported records to be used more easily in statistical analysis or other research software.
 
@@ -329,34 +329,43 @@ When using OsteoMap for research or fieldwork:
 
 ---
 
-# Android Installation (WIP)
+# Android Installation and Handover
 
-OsteoMap is intended to be installed and used on an Android device. The final Android installation process is currently being finalised and may change before the completed application is released.
+The production deliverable is an installable Android APK. Give the client the
+final APK together with this README and verify installation on their device.
+OsteoMap's custom native Downloads plugin supports **Android 10 or later**.
 
-The final installation guide will provide the complete steps required to obtain, install, and verify OsteoMap on a supported Android device.
+**Installing the APK:** Transfer the approved APK to the Android phone; open
+it in Downloads/Files, approve installation from that source if prompted,
+and install OsteoMap. Open the app, create a test individual, mark a bone,
+reopen it and export both CSV and JPEG while offline. Save copies of both files outside the phone and check they open correctly.
 
-## Current Installation Process
+**Rebuilding from source:** This repository does **not** contain a complete,
+tracked Capacitor/Android Gradle project or a release signing configuration.
+The final Android builder must retain the matching Capacitor app/project,
+copy `www/` into that project, register the Java downloads plugin using
+`native-android/SETUP.txt`, and install the custom icon resources stored in
+`native-android/launcher-res/res/`. Then run `npx cap sync android` and build
+and test a fresh APK. The existing emulator ID `com.cits3200.osteomaptest`
+is for testing only; keep the final client app's package ID unchanged during
+upgrades or its IndexedDB records will not automatically transfer. Keep the
+release signing key safely: Android app upgrades also require the same signing
+identity. Do not uninstall an old client app to fix an upgrade error; that
+may permanently delete its IndexedDB records.
 
-The Android installation procedure is still under development. Once the final Android build has been prepared, this section will explain how to:
+**Data retention warning:** All editable records exist only in this device's
+IndexedDB. CSV and JPEG exports are **not** full database backups and the app
+currently has no import/restore function. Uninstalling, clearing storage,
+losing or replacing the device can permanently destroy editable records.
+Preserve regular copies of exported data in another safe location, and do not
+wipe the original device without a verified recovery plan. Long-term client
+use requires a separately verified backup/restore process and update policy.
 
-1. Obtain the OsteoMap Android installation package.
-2. Transfer or download the installation package to the Android device.
-3. Allow installation from the required source if prompted by Android.
-4. Install OsteoMap.
-5. Open OsteoMap for the first time.
-6. Confirm that the application starts correctly.
-7. Confirm that local data storage is functioning.
-8. Confirm that the application can be used without an active internet connection where appropriate.
-
-The exact installation steps should be updated once the final Android distribution method has been confirmed.
-
-## Installation Limitations
-
-Because the Android installation process is still being finalised:
-
-- Installation instructions may change before the final release.
-- The final Android package and supported installation method are still to be confirmed.
-- Users should not rely on the current development installation process as the final client installation procedure.
+**CSV code mapping:** 0 = Absent, 1 = Present / Complete, 2 = Fragmented.
+Some visual SVG bone IDs have no client MNI-element metadata; their CSV
+`element_code`/`element_label` cells are left blank, even though `bone_id`
+and `state_code` are exported. Confirm the client's required export schema
+before relying on these columns for research analysis.
 
 ---
 
@@ -439,8 +448,8 @@ Preservation states are represented numerically during export:
 | Preservation State | Code |
 | ------------------ | ---: |
 | Absent             |    0 |
-| Fragmented         |    1 |
-| Present / Complete |    2 |
+| Fragmented         |    2 |
+| Present / Complete |    1 |
 
 These numerical values provide a consistent representation of skeletal preservation states for exported records.
 

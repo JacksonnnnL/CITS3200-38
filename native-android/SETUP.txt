@@ -30,3 +30,21 @@ Desktop browsers continue normal browser downloads.
 
 Do not copy the native-android/ folder verbatim as `android/` inside the web
 repository. Its Java source must be integrated into the generated Android app.
+
+ANDROID LAUNCHER ICON — TESTED IN ANDROID EMULATOR
+
+The source artwork is native-android/OsteoMap_App_Icon_1024.png.
+Launcher resources are tracked under native-android/launcher-res/res/.
+
+In the Android packaging project, copy the contents of that res/ folder
+into android/app/src/main/res/ (merge folders, overwriting the default
+ic_launcher resources). For example, from the Git repository root:
+
+    rsync -a native-android/launcher-res/res/ \
+      /path/to/CapacitorProject/android/app/src/main/res/
+
+Keep the existing app's AndroidManifest icon reference to @mipmap/ic_launcher.
+Build a fresh APK and verify the icon on an emulator and physical Android phone.
+Capacitor sync alone does not copy launcher-res resources from this repository.
+The final app ID and signing configuration belong to the final build project;
+the test ID com.cits3200.osteomaptest is not the client release identity.

@@ -25,6 +25,16 @@
 
 * {
     box-sizing: border-box;
+    /* Suppress Android WebView's rectangular tap highlight, not our bone states. */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Keep an intentional indicator for keyboard users. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 
@@ -1250,6 +1260,12 @@ body {
     overflow: auto;
     position: relative;
     -webkit-overflow-scrolling: touch;
+}
+
+/* Skeleton artwork is interactive, not selectable text. */
+#skeleton-board svg {
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 #skeleton-board .skeleton-placeholder {

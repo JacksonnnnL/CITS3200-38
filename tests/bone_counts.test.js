@@ -547,6 +547,7 @@ describe("getSiteBoneStats", () => {
       individuals.push(await createAccession({
         siteId: site.id,
         accessionNumber: `SK${i}`,
+        ageCategory: AGE_CATEGORIES.ADULT,
       }));
     }
 
@@ -682,6 +683,7 @@ describe("getSiteBoneStats", () => {
     const added = await createAccession({
       siteId: site.id,
       accessionNumber: "SK99",
+      ageCategory: AGE_CATEGORIES.ADULT,
     });
 
     await mark(added, "FEM_R", PRESENT_COMPLETE);

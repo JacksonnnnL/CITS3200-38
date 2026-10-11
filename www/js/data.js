@@ -48,6 +48,14 @@ export class ValidationError extends Error {
   }
 }
 
+export class DuplicateAccessionNumberError extends ValidationError {
+  constructor(number) {
+    super(`Accession number "${number}" already exists in this site`);
+    this.name = "DuplicateAccessionNumberError";
+    this.accessionNumber = number;
+  }
+}
+
 export class NotFoundError extends Error {
   constructor(message) {
     super(message);
@@ -297,6 +305,24 @@ export async function deleteContext(id) {
 // Accession (Skeleton Record) Operations
 // ========================================
 
+// Treat differences in surrounding whitespace or letter case as the same
+// accession number within a site (e.g. " ACC01 " and "acc01").
+function normalizeAccessionNumber(number) {
+  return (number || "").trim().toLowerCase();
+}
+
+// Run this inside the same readwrite IndexedDB transaction as the write.
+// It prevents simultaneous creations from both passing an earlier UI check.
+async function assertAccessionNumberAvailable(store, siteId, number, excludeId = null) {
+  const accessions = await requestToPromise(store.index("siteId").getAll(siteId));
+  if (accessions.some(
+    (item) => item.id !== excludeId &&
+      normalizeAccessionNumber(item.accessionNumber) === normalizeAccessionNumber(number)
+  )) {
+    throw new DuplicateAccessionNumberError(number);
+  }
+}
+
 export async function createAccession({
   siteId,
   contextId = null,
@@ -310,7 +336,10 @@ export async function createAccession({
   const trimmedNumber = (accessionNumber || "").trim();
   if (!trimmedNumber) throw new ValidationError("Accession number is required");
 
-  if (ageCategory && !Object.values(AGE_CATEGORIES).includes(ageCategory)) {
+  if (!ageCategory) {
+    throw new ValidationError("Developmental age is required");
+  }
+  if (!Object.values(AGE_CATEGORIES).includes(ageCategory)) {
     throw new ValidationError(`Invalid age category: ${ageCategory}`);
   }
 
@@ -338,7 +367,10 @@ export async function createAccession({
     createdAt: new Date().toISOString(),
   };
 
-  await withStore("accessions", "readwrite", (store) => requestToPromise(store.add(accession)));
+  await withStore("accessions", "readwrite", async (store) => {
+    await assertAccessionNumberAvailable(store, siteId, trimmedNumber);
+    await requestToPromise(store.add(accession));
+  });
   return accession;
 }
 
@@ -347,6 +379,16 @@ export async function updateAccession(id, updates) {
     const existing = await requestToPromise(store.get(id));
     if (!existing) return null;
     const updated = { ...existing, ...updates, id };
+
+    // Also protect a future rename or move between sites. Regular edits to
+    // notes/context remain possible even for older data containing duplicates.
+    if (updates.accessionNumber !== undefined || updates.siteId !== undefined) {
+      const number = (updated.accessionNumber || "").trim();
+      if (!number) throw new ValidationError("Accession number is required");
+      await assertAccessionNumberAvailable(store, updated.siteId, number, id);
+      updated.accessionNumber = number;
+    }
+
     await requestToPromise(store.put(updated));
     return updated;
   });

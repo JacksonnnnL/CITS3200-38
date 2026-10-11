@@ -1,6 +1,8 @@
 import {
     createAccession,
     createContext,
+    DuplicateAccessionNumberError,
+    getAccessionsBySite,
     getContextsBySite
 } from "./data.js";
 
@@ -88,6 +90,17 @@ document
 
             try {
 
+                // Check before creating a new Context/Grave, so a rejected
+                // duplicate does not leave behind an unused context record.
+                const existingIndividuals = await getAccessionsBySite(siteId);
+                if (existingIndividuals.some(
+                    (individual) =>
+                        (individual.accessionNumber || "").trim().toLowerCase() ===
+                        accessionNumber.toLowerCase()
+                )) {
+                    throw new DuplicateAccessionNumberError(accessionNumber);
+                }
+
                 // ========================================
                 // Optional Context / Grave
                 // ========================================
@@ -145,7 +158,7 @@ document
                     notes,
 
                     ageCategory:
-                        developmentalAge || null
+                        developmentalAge
 
                 });
 
