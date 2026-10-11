@@ -38,7 +38,7 @@ describe("stateToCode", () => {
             stateToCode(
                 PRESERVATION_STATES.PRESENT_FRAGMENTED
             )
-        ).toBe(1);
+        ).toBe(2);
     });
 
 
@@ -48,7 +48,7 @@ describe("stateToCode", () => {
             stateToCode(
                 PRESERVATION_STATES.PRESENT_COMPLETE
             )
-        ).toBe(2);
+        ).toBe(1);
     });
 
 
@@ -91,7 +91,7 @@ describe("buildExportRows", () => {
             bone_id: "FEM_R",
             element_code: "FEM_R",
             element_label: "Right femur",
-            state_code: 2
+            state_code: 1
         });
     });
 
@@ -119,12 +119,27 @@ describe("buildExportRows", () => {
             bone_id: "MAL_L",
             element_code: "",
             element_label: "",
-            state_code: 2
+            state_code: 1
         });
     });
 
 });
 
+it("exports fragmented bones with state code 2", () => {
+
+    const zoneStates = [
+        {
+            bone: "FEM_R",
+            side: "",
+            zone: "FEM_R",
+            state: PRESERVATION_STATES.PRESENT_FRAGMENTED
+        }
+    ];
+
+    const rows = buildExportRows(zoneStates);
+
+    expect(rows[0].state_code).toBe(2);
+});
 
 // ========================================
 // CSV Value Formatting

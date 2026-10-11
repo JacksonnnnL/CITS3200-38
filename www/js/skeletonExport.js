@@ -7,6 +7,9 @@ import {
     ELEMENT_BY_SVG_ID
 } from './bone_counts.js';
 
+import {
+    STATE_COLORS
+} from './skeleton_config.js';
 
 // ========================================
 // CSV State Codes
@@ -172,6 +175,87 @@ export async function downloadIndividualCsv(
 }
 
 // ========================================
+// Draw Preservation Legend on JPEG
+// ========================================
+
+function drawPreservationLegend(ctx, canvas, margin, legendHeight) {
+
+    const legendItems = [
+        {
+            label: 'Present',
+            color: STATE_COLORS[PRESERVATION_STATES.PRESENT_COMPLETE]
+        },
+        {
+            label: 'Fragmented',
+            color: STATE_COLORS[PRESERVATION_STATES.PRESENT_FRAGMENTED]
+        },
+        {
+            label: 'Absent',
+            color: STATE_COLORS[PRESERVATION_STATES.ABSENT]
+        },
+        {
+            label: 'Unmarked',
+            color: '#ffffff'
+        }
+    ];
+
+    // Position the legend below the skeleton
+    const legendTop =
+        canvas.height - margin - legendHeight;
+
+    // Horizontal divider
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.moveTo(margin, legendTop + 20);
+    ctx.lineTo(canvas.width - margin, legendTop + 20);
+    ctx.stroke();
+
+    // Legend heading
+    ctx.fillStyle = '#222222';
+    ctx.font = 'bold 54px Arial';
+
+    ctx.fillText(
+        'Preservation State Legend',
+        margin,
+        legendTop + 100
+    );
+
+    // Arrange four legend items horizontally
+    const availableWidth = canvas.width - margin * 2;
+    const itemWidth = availableWidth / legendItems.length;
+
+    const squareSize = 55;
+    const itemY = legendTop + 160;
+
+    legendItems.forEach((item, index) => {
+
+        const x = margin + index * itemWidth;
+
+        // Draw colour square
+        ctx.fillStyle = item.color;
+        ctx.fillRect(x, itemY, squareSize, squareSize);
+
+        // Outline for visibility
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, itemY, squareSize, squareSize);
+
+        // Draw label
+        ctx.fillStyle = '#222222';
+        ctx.font = '38px Arial';
+
+        ctx.fillText(
+            item.label,
+            x + squareSize + 18,
+            itemY + 42
+        );
+    });
+}
+
+
+// ========================================
 // Download Skeleton JPEG Blob
 // ========================================
 
@@ -219,12 +303,24 @@ export async function createSkeletonJpegBlob(svgElement) {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Margins
-    const margin = 180;
-    const maxWidth = canvas.width - margin * 2;
-    const maxHeight = canvas.height - margin * 2;
+    // ========================================
+    // Canvas Layout
+    // ========================================
 
-    // Keep aspect ratio
+    // Outer margins
+    const margin = 180;
+
+    // Reserve space for preservation legend
+    const legendHeight = 360;
+
+    // Available space for skeleton
+    const maxWidth =
+        canvas.width - margin * 2;
+
+    const maxHeight =
+        canvas.height - margin * 2 - legendHeight;
+
+    // Maintain SVG aspect ratio
     const scale = Math.min(
         maxWidth / image.width,
         maxHeight / image.height
@@ -233,9 +329,14 @@ export async function createSkeletonJpegBlob(svgElement) {
     const drawWidth = image.width * scale;
     const drawHeight = image.height * scale;
 
-    const x = (canvas.width - drawWidth) / 2;
-    const y = (canvas.height - drawHeight) / 2;
+    // Centre skeleton within its allocated area
+    const x =
+        (canvas.width - drawWidth) / 2;
 
+    const y =
+        margin + (maxHeight - drawHeight) / 2;
+
+    // Draw skeleton
     ctx.drawImage(
         image,
         x,
@@ -243,6 +344,18 @@ export async function createSkeletonJpegBlob(svgElement) {
         drawWidth,
         drawHeight
     );
+
+    // ========================================
+    // Draw Preservation Legend
+    // ========================================
+
+    drawPreservationLegend(
+        ctx,
+        canvas,
+        margin,
+        legendHeight
+    );
+
 
     URL.revokeObjectURL(svgUrl);
 
