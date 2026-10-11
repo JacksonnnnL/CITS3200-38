@@ -33,23 +33,23 @@ describe("stateToCode", () => {
     });
 
 
-    it("converts fragmented to 1", () => {
+    it("converts fragmented to 2", () => {
 
         expect(
             stateToCode(
                 PRESERVATION_STATES.PRESENT_FRAGMENTED
             )
-        ).toBe(1);
+        ).toBe(2);
     });
 
 
-    it("converts complete to 2", () => {
+    it("converts complete to 1", () => {
 
         expect(
             stateToCode(
                 PRESERVATION_STATES.PRESENT_COMPLETE
             )
-        ).toBe(2);
+        ).toBe(1);
     });
 
 
@@ -92,7 +92,7 @@ describe("buildExportRows", () => {
             bone_id: "FEM_R",
             element_code: "FEM_R",
             element_label: "Right femur",
-            state_code: 2
+            state_code: 1
         });
     });
 
@@ -120,7 +120,7 @@ describe("buildExportRows", () => {
             bone_id: "MAL_L",
             element_code: "",
             element_label: "",
-            state_code: 2
+            state_code: 1
         });
     });
 
@@ -139,7 +139,7 @@ it("exports fragmented bones with state code 1", () => {
 
     const rows = buildExportRows(zoneStates);
 
-    expect(rows[0].state_code).toBe(1);
+    expect(rows[0].state_code).toBe(2);
 });
 
 // ========================================
