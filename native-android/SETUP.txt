@@ -1,0 +1,32 @@
+ANDROID DOWNLOADS PLUGIN — IMPORTANT FOR THE FINAL APK
+
+The original CITS3200-38 GitHub repo contains no tracked android/ project.
+This Java source must be copied into the actual Capacitor Android project
+that Hannah/Owen is packaging; adding only the JS files to GitHub is not enough.
+
+Place OsteoMapDownloadsPlugin.java into the same Java package/folder as
+android/app/src/main/java/.../MainActivity.java.
+Change its `package com.cits3200.osteomaptest;` line to your actual application
+package if different.
+
+Register in MainActivity.java before calling super.onCreate(...):
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(OsteoMapDownloadsPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+
+You may need `import android.os.Bundle;`. Keep existing MainActivity code.
+
+Then from the Capacitor project root:
+    npx cap sync android
+
+Rebuild/reinstall the APK in Android Studio (sync alone does not rebuild).
+The custom Java plugin writes files into public Downloads on Android 10+.
+No ZIP is produced. Both checkboxes selected -> two distinct files.
+The previous Share/Filesystem plugins are NOT required for Android Downloads.
+Desktop browsers continue normal browser downloads.
+
+Do not copy the native-android/ folder verbatim as `android/` inside the web
+repository. Its Java source must be integrated into the generated Android app.
