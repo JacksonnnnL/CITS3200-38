@@ -1381,21 +1381,28 @@ body {
 
 .selected-row {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-direction: column;
+    gap: 12px;
     padding: 4px 0 8px 0;
 }
 
 #selected-segment-name {
-    flex: 1 1 160px;
     font-size: 16px;
     font-weight: 700;
     color: var(--text);
     min-width: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-light);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.selection-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 #skeleton-select-container {
@@ -1712,6 +1719,53 @@ body {
     opacity: 0.9;
     line-height: 1.3;
     text-align: center;
+}
+
+
+.selected-row .segment-tab:disabled {
+    background: var(--border-light);
+    color: var(--text-muted);
+    border-color: var(--border);
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+#details-box .state-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+#details-box .state-btn:disabled:active {
+    transform: none;
+}
+
+.app[inert] {
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#state-confirmation-modal {
+    touch-action: none;
+    overscroll-behavior: contain;
+}
+
+#state-confirmation-modal .modal-dialog {
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+}
+
+#state-confirmation-message {
+    color: var(--text);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+#state-confirmation-modal .modal-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* ========================================

@@ -64,6 +64,10 @@ let boneStates = {};
 let currentSegment = null;
 let currentFolder = null;
 let savedStates = [];
+let undoStates = null;
+let pendingAction = null;
+let savingStates = false;
+let confirmationTrigger = null;
 
 const HIGHLIGHT = '#007f7a';
 const PRESENT_STATE = 'present-complete';
@@ -101,6 +105,32 @@ const selectedSegmentName = document.getElementById('selected-segment-name');
 const segmentTabs = document.getElementById('segment-tabs');
 const detailsCloseButton = document.getElementById('details-close');
 const allPresentButton = document.getElementById('all-present-button');
+const app = document.querySelector('.app');
+const confirmationModal = document.getElementById('state-confirmation-modal');
+const confirmationMessage = document.getElementById('state-confirmation-message');
+const confirmationCancel = document.getElementById('cancel-state-action-button');
+const confirmationConfirm = document.getElementById('confirm-state-action-button');
+
+// ========================================
+// State Controls
+// ========================================
+
+// Add Reset States and Undo Change using the same style as All Present.
+const resetStatesButton = document.createElement('button');
+resetStatesButton.id = 'reset-states-button';
+resetStatesButton.className = 'segment-tab';
+resetStatesButton.type = 'button';
+resetStatesButton.textContent = 'Reset States';
+resetStatesButton.disabled = true;
+allPresentButton.insertAdjacentElement('afterend', resetStatesButton);
+
+const undoChangeButton = document.createElement('button');
+undoChangeButton.id = 'undo-change-button';
+undoChangeButton.className = 'segment-tab';
+undoChangeButton.type = 'button';
+undoChangeButton.textContent = 'Undo Change';
+undoChangeButton.disabled = true;
+resetStatesButton.insertAdjacentElement('afterend', undoChangeButton);
 
 // ========================================
 // Zoom Controls
@@ -113,7 +143,7 @@ resetZoomButton.className = 'segment-tab';
 resetZoomButton.type = 'button';
 resetZoomButton.textContent = 'Reset Zoom';
 resetZoomButton.disabled = true;
-allPresentButton.insertAdjacentElement('afterend', resetZoomButton);
+undoChangeButton.insertAdjacentElement('afterend', resetZoomButton);
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 6;
@@ -240,7 +270,7 @@ function startPinch(touches) {
 
 // One finger moves the drawing; two fingers change its zoom.
 container.addEventListener('touchstart', event => {
-    if (!zoomSvg) return;
+    if (!zoomSvg || savingStates || pendingAction) return;
     if (event.touches.length >= 2) {
         startPinch(event.touches);
     } else if (event.touches.length === 1) {
@@ -259,7 +289,7 @@ container.addEventListener('touchstart', event => {
 }, { passive: true });
 
 container.addEventListener('touchmove', event => {
-    if (!zoomSvg || !touchGesture) return;
+    if (!zoomSvg || !touchGesture || savingStates || pendingAction) return;
     if (event.cancelable) event.preventDefault();
 
     if (touchGesture.type === 'pinch') {
@@ -310,15 +340,15 @@ container.addEventListener('touchcancel', () => {
 });
 
 container.addEventListener('click', event => {
-    if (touchGesture?.moved || Date.now() < suppressClickUntil) {
+    if (savingStates || pendingAction || touchGesture?.moved || Date.now() < suppressClickUntil) {
         event.preventDefault();
         event.stopImmediatePropagation();
     }
 }, true);
 
-// Support mouse-wheel movement and Ctrl + wheel zoom on desktop.
+// Support mouse-wheel movement and Ctrl + wheel zoom for testing in Live Server.
 container.addEventListener('wheel', event => {
-    if (!zoomSvg) return;
+    if (!zoomSvg || savingStates || pendingAction) return;
 
     if (event.ctrlKey) {
         event.preventDefault();
@@ -334,8 +364,8 @@ container.addEventListener('wheel', event => {
     } else if (zoomLevel > MIN_ZOOM) {
         const unit = event.deltaMode === 1 ? 16
             : event.deltaMode === 2 ? viewerHeight : 1;
-        const dx = event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX;
-        const dy = event.shiftKey && !event.deltaX ? 0 : event.deltaY;
+        const dx = event.deltaX;
+        const dy = event.deltaY;
         const left = container.scrollLeft;
         const top = container.scrollTop;
         container.scrollLeft += dx * unit;
@@ -346,7 +376,9 @@ container.addEventListener('wheel', event => {
     }
 }, { passive: false });
 
-resetZoomButton.addEventListener('click', resetZoom);
+resetZoomButton.addEventListener('click', () => {
+    if (!savingStates && !pendingAction) resetZoom();
+});
 
 // Fit the segment again when the viewer changes size or the phone rotates.
 if (typeof ResizeObserver !== 'undefined') {
@@ -385,44 +417,221 @@ function paintGroup(group, state) {
 }
 
 // ========================================
-// Save Linked Bone States
+// Save Bone States
 // ========================================
 
-// Apply or clear the state for every linked view of the same bone.
-// Update the colours on screen and save each linked ID.
-// Child, Infant and Adolescent unfused parts remain independent from their parent bone.
-async function applyStateToLinkedBones(boneId, finalState) {
-    const ids = linkedSvgIds(boneId, currentAccession?.ageCategory);
+// Save or clear one ID before updating its colour on screen.
+// Each linked view keeps its own previous state for Undo Change.
+async function saveBoneState(id, state) {
+    if (state === null) {
+        await clearZoneState({
+            accessionId: accessionId,
+            bone: id,
+            side: '',
+            zone: id
+        });
+        delete boneStates[id];
+    } else {
+        await setZoneState({
+            accessionId: accessionId,
+            bone: id,
+            side: '',
+            zone: id,
+            state: state
+        });
+        boneStates[id] = state;
+    }
 
-    for (const id of ids) {
-        boneStates[id] = finalState;
+    const group = container.querySelector(`#${CSS.escape(id)}`);
+    if (group) paintGroup(group, state);
+}
 
-        const group = container.querySelector(`#${CSS.escape(id)}`);
-        if (group) paintGroup(group, finalState);
+// Show the current state in the open bone details popup.
+function updateDetailsState() {
+    if (!selectedBone) return;
+    const state = boneStates[selectedBone] || UNMARKED;
+    detailStatusText.textContent = STATE_LABELS[state];
+    detailStatusDot.style.background = STATE_DOTS[state];
+}
 
-        try {
-            if (finalState === null) {
-                await clearZoneState({
-                    accessionId: accessionId,
-                    bone: id,
-                    side: '',
-                    zone: id
-                });
-            } else {
-                await setZoneState({
-                    accessionId: accessionId,
-                    bone: id,
-                    side: '',
-                    zone: id,
-                    state: finalState
-                });
-            }
-        } catch (error) {
-            console.error('Failed to save bone state:', id, error);
-            throw error;
+// Get the selectable bones in the loaded segment.
+function selectableBoneGroups() {
+    return Array.from(container.querySelectorAll('g[id]')).filter(group => {
+        const id = group.id.trim();
+        return !isNonBoneId(id)
+            && !isGhostGroup(group)
+            && isSelectableBoneGroup(group, currentAccession?.ageCategory);
+    });
+}
+
+// Include each linked view once when changing several bones together.
+function statesForBones(boneIds, state) {
+    const states = {};
+    for (const boneId of boneIds) {
+        for (const id of linkedSvgIds(boneId, currentAccession?.ageCategory)) {
+            states[id] = state;
         }
     }
+    return states;
 }
+
+// Disable controls while saving and enable Undo only when a change is stored.
+function updateStateControls() {
+    const hasBones = !!zoomSvg && selectableBoneGroups().length > 0;
+    allPresentButton.disabled = savingStates || !hasBones;
+    resetStatesButton.disabled = savingStates || !hasBones;
+    undoChangeButton.disabled = savingStates || !hasBones || !undoStates;
+    resetZoomButton.disabled = savingStates || !zoomSvg;
+    segmentTabs.querySelectorAll('button').forEach(button => {
+        button.disabled = savingStates;
+    });
+    document.getElementById('back-to-overview-button').disabled = savingStates;
+    document.querySelectorAll('#details-box .state-btn').forEach(button => {
+        button.disabled = savingStates;
+    });
+    confirmationCancel.disabled = savingStates;
+    confirmationConfirm.disabled = savingStates;
+}
+
+// Keep only the latest change. A whole segment action uses one saved snapshot.
+// If saving fails, restore the affected IDs before reporting the error.
+async function changeBoneStates(states, isUndo = false) {
+    if (savingStates) return;
+
+    const previous = {};
+    for (const [id, state] of Object.entries(states)) {
+        const currentState = boneStates[id] || null;
+        if (currentState !== state) previous[id] = currentState;
+    }
+    if (Object.keys(previous).length === 0) {
+        if (isUndo) undoStates = null;
+        updateStateControls();
+        return;
+    }
+
+    savingStates = true;
+    touchGesture = null;
+    updateStateControls();
+    const attemptedIds = [];
+
+    try {
+        for (const id of Object.keys(previous)) {
+            attemptedIds.push(id);
+            await saveBoneState(id, states[id]);
+        }
+        undoStates = isUndo ? null : previous;
+    } catch (error) {
+        let restored = true;
+        for (const id of attemptedIds) {
+            try {
+                await saveBoneState(id, previous[id]);
+            } catch (restoreError) {
+                restored = false;
+                console.error('Failed to restore bone state:', id, restoreError);
+            }
+        }
+        if (!restored && !isUndo) undoStates = previous;
+        console.error('Failed to save bone states:', error);
+        throw error;
+    } finally {
+        savingStates = false;
+        updateDetailsState();
+        updateStateControls();
+    }
+}
+
+// ========================================
+// Confirmation Window
+// ========================================
+
+// Ask before marking, clearing or undoing bone states.
+// Keep the page behind the window inactive until it closes.
+function openConfirmation(action, trigger) {
+    if (savingStates || pendingAction) return;
+    if (action === 'undo' && !undoStates) return;
+    if (!zoomSvg || selectableBoneGroups().length === 0) return;
+
+    const messages = {
+        present: 'Are you sure you want to mark all bones in this segment as Present?',
+        reset: 'Are you sure you want to clear all bone states in this segment to Unmarked?',
+        undo: 'Are you sure you want to undo the last change?'
+    };
+
+    pendingAction = action;
+    confirmationTrigger = trigger;
+    confirmationMessage.textContent = messages[action];
+    confirmationModal.classList.add('open');
+    confirmationModal.setAttribute('aria-hidden', 'false');
+    app.setAttribute('inert', '');
+    touchGesture = null;
+    confirmationCancel.focus();
+}
+
+// Close the window and return focus to the action button.
+function closeConfirmation() {
+    confirmationModal.classList.remove('open');
+    confirmationModal.setAttribute('aria-hidden', 'true');
+    app.removeAttribute('inert');
+    pendingAction = null;
+    if (confirmationTrigger && !confirmationTrigger.disabled) {
+        confirmationTrigger.focus();
+    } else {
+        allPresentButton.focus();
+    }
+    confirmationTrigger = null;
+}
+
+// Block background clicks even on devices without inert support.
+app.addEventListener('click', event => {
+    if (!pendingAction && !savingStates) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+}, true);
+
+confirmationCancel.addEventListener('click', () => {
+    if (!savingStates) closeConfirmation();
+});
+
+// Keep keyboard focus in the window. Escape cancels before saving starts.
+confirmationModal.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        if (!savingStates) closeConfirmation();
+    } else if (event.key === 'Tab') {
+        event.preventDefault();
+        if (savingStates) return;
+        const next = document.activeElement === confirmationCancel
+            ? confirmationConfirm : confirmationCancel;
+        next.focus();
+    }
+});
+
+// Confirm one action and keep the window open until its states are saved.
+confirmationConfirm.addEventListener('click', async () => {
+    if (!pendingAction || savingStates) return;
+    const action = pendingAction;
+
+    try {
+        if (action === 'undo') {
+            await changeBoneStates(undoStates, true);
+        } else {
+            const boneIds = selectableBoneGroups().map(group => group.id.trim());
+            const state = action === 'present' ? PRESENT_STATE : null;
+            await changeBoneStates(statesForBones(boneIds, state));
+        }
+        closeConfirmation();
+    } catch (error) {
+        alert('Failed to save bone states. Please try again.');
+    }
+});
+
+// Clear only the undo snapshot when leaving the page or changing segments.
+function clearUndoHistory() {
+    undoStates = null;
+    undoChangeButton.disabled = true;
+}
+
+window.addEventListener('pagehide', clearUndoHistory);
 
 // ========================================
 // Close Bone Details
@@ -471,6 +680,8 @@ async function loadData() {
 
         document.getElementById('back-to-overview-button')
             .addEventListener('click', () => {
+                if (savingStates || pendingAction) return;
+                clearUndoHistory();
                 window.location.href =
                     `skeletons_overview.html?accessionId=${encodeURIComponent(accessionId)}`;
             });
@@ -549,8 +760,10 @@ function renderSegmentTabs() {
 async function loadSegment(segmentId) {
     const segment = SEGMENTS.find(s => s.id === segmentId);
     if (!segment || segment.status === 'missing') return;
-    if (!currentFolder) return;
+    if (!currentFolder || savingStates || pendingAction) return;
 
+    clearUndoHistory();
+    resetStatesButton.disabled = true;
     allPresentButton.disabled = true;
     resetZoomButton.disabled = true;
     zoomSvg = null;
@@ -670,7 +883,7 @@ function applyColorsAndMakeClickable() {
         });
     });
 
-    allPresentButton.disabled = (boneElements.length === 0);
+    updateStateControls();
 }
 
 // ========================================
@@ -680,6 +893,7 @@ function applyColorsAndMakeClickable() {
 // Select the bone, outline its linked views and show its current state.
 // Clicking the same selected bone again closes the details popup.
 function handleBoneClick(element) {
+    if (savingStates || pendingAction) return;
     const boneId = element.id.trim();
 
     // Remove the outline from the bone's non-decorative shapes.
@@ -747,10 +961,11 @@ detailsCloseButton.addEventListener('click', (e) => {
 // Preservation State Buttons
 // ========================================
 
-// Save the chosen state for the selected bone and its linked views.
+// Save the selected bone and its linked views as one change.
 // Choosing the current state again clears it back to Unmarked.
 document.querySelectorAll('#details-box .state-btn').forEach(btn => {
     btn.addEventListener('click', async function() {
+        if (savingStates || pendingAction) return;
         if (!selectedBone) {
             detailsBox.style.display = 'none';
             return;
@@ -761,76 +976,28 @@ document.querySelectorAll('#details-box .state-btn').forEach(btn => {
         const finalState = (currentState === newState) ? null : newState;
 
         try {
-            await applyStateToLinkedBones(selectedBone, finalState);
+            await changeBoneStates(statesForBones([selectedBone], finalState));
         } catch (error) {
             alert('Failed to save bone state. Please try again.');
-            return;
         }
-
-        const displayState = finalState || UNMARKED;
-        detailStatusText.textContent = STATE_LABELS[displayState];
-        detailStatusDot.style.background = STATE_DOTS[displayState];
     });
 });
 
 // ========================================
-// Mark All Present
+// Segment State Actions
 // ========================================
 
-// Mark every selectable bone in the current segment as Present.
-// Apply the same state to linked views and update the open details popup.
-allPresentButton.addEventListener('click', async () => {
-    const boneElements = [];
+// Open confirmation before changing or restoring bone states.
+allPresentButton.addEventListener('click', () => {
+    openConfirmation('present', allPresentButton);
+});
 
-    container.querySelectorAll('g[id]').forEach(group => {
-        const id = group.id.trim();
+resetStatesButton.addEventListener('click', () => {
+    openConfirmation('reset', resetStatesButton);
+});
 
-        if (isNonBoneId(id)) return;
-        if (isGhostGroup(group)) return;
-        if (!isSelectableBoneGroup(group, currentAccession?.ageCategory)) return;
-
-        boneElements.push(group);
-    });
-
-    if (boneElements.length === 0) {
-        alert('No bones to mark in this segment.');
-        return;
-    }
-
-    allPresentButton.disabled = true;
-
-    try {
-        // Process each linked group once to avoid repeating the same saves.
-        const handledCodes = new Set();
-
-        for (const group of boneElements) {
-            const boneId = group.id.trim();
-            const linked = linkedSvgIds(
-                boneId,
-                currentAccession?.ageCategory
-            );
-            const codeKey = linked.length > 1 ? linked[0] : boneId;
-
-            if (handledCodes.has(codeKey)) {
-                paintGroup(group, PRESENT_STATE);
-                boneStates[boneId] = PRESENT_STATE;
-                continue;
-            }
-            handledCodes.add(codeKey);
-
-            await applyStateToLinkedBones(boneId, PRESENT_STATE);
-        }
-
-        if (selectedBone && boneStates[selectedBone] === PRESENT_STATE) {
-            detailStatusText.textContent = STATE_LABELS[PRESENT_STATE];
-            detailStatusDot.style.background = STATE_DOTS[PRESENT_STATE];
-        }
-    } catch (error) {
-        console.error('Failed to mark all present:', error);
-        alert('Failed to mark all bones present. Please try again.');
-    } finally {
-        allPresentButton.disabled = false;
-    }
+undoChangeButton.addEventListener('click', () => {
+    openConfirmation('undo', undoChangeButton);
 });
 
 // ========================================
