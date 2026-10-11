@@ -14,13 +14,13 @@ import {
 
 // Proposed research coding:
 // 0 = Absent
-// 1 = Fragmented
-// 2 = Present / Complete
+// 2 = Fragmented
+// 1 = Present / Complete
 
 export const STATE_CODES = {
     [PRESERVATION_STATES.ABSENT]: 0,
-    [PRESERVATION_STATES.PRESENT_FRAGMENTED]: 1,
-    [PRESERVATION_STATES.PRESENT_COMPLETE]: 2
+    [PRESERVATION_STATES.PRESENT_FRAGMENTED]: 2,
+    [PRESERVATION_STATES.PRESENT_COMPLETE]: 1
 };
 
 
