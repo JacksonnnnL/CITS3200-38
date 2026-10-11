@@ -11,19 +11,24 @@ import {
     STATE_COLORS
 } from './skeleton_config.js';
 
+import {
+    isNativeApp,
+    saveNativeBlob
+} from './nativeFileSaver.js';
+
 // ========================================
 // CSV State Codes
 // ========================================
 
 // Proposed research coding:
 // 0 = Absent
-// 2 = Fragmented
-// 1 = Present / Complete
+// 1 = Fragmented
+// 2 = Present / Complete
 
 export const STATE_CODES = {
     [PRESERVATION_STATES.ABSENT]: 0,
-    [PRESERVATION_STATES.PRESENT_FRAGMENTED]: 2,
-    [PRESERVATION_STATES.PRESENT_COMPLETE]: 1
+    [PRESERVATION_STATES.PRESENT_FRAGMENTED]: 1,
+    [PRESERVATION_STATES.PRESENT_COMPLETE]: 2
 };
 
 
@@ -171,7 +176,7 @@ export async function downloadIndividualCsv(
     const blob =
         await createIndividualCsvBlob(accessionId);
 
-    downloadBlob(blob, fileName);
+    await downloadBlob(blob, fileName);
 }
 
 // ========================================
@@ -390,81 +395,59 @@ export async function downloadSkeletonJpeg(
     const blob =
         await createSkeletonJpegBlob(svgElement);
 
-    downloadBlob(blob, fileName);
+    await downloadBlob(blob, fileName);
 }
 
 // ========================================
 // Download Blob
 // ========================================
 
-function downloadBlob(blob, fileName) {
+async function downloadBlob(blob, fileName) {
+    if (isNativeApp()) {
+        // Native saving is required for Capacitor's Android WebView.
+        // Do not silently fall back to a browser download if the plugin fails.
+        await saveNativeBlob(blob, fileName);
+        return;
+    }
 
-    const url =
-        URL.createObjectURL(blob);
-
-    const link =
-        document.createElement('a');
-
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
     link.href = url;
     link.download = fileName;
-
     document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
+    try {
+        link.click();
+    } finally {
+        link.remove();
+        // Allow the browser time to take ownership of the Blob URL.
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
 }
 
-
 // ========================================
-// Download CSV + JPEG as ZIP
+// Export two separate files, without ZIP
 // ========================================
 
-export async function downloadIndividualZip(
+export async function saveCsvAndJpeg(csvBlob, jpegBlob, baseFileName) {
+    const csvName = `${baseFileName}_data.csv`;
+    const jpegName = `${baseFileName}_skeleton.jpg`;
+
+    await downloadBlob(csvBlob, csvName);
+    try {
+        await downloadBlob(jpegBlob, jpegName);
+    } catch (error) {
+        throw new Error(`CSV was saved, but JPEG export failed: ${error.message}`);
+    }
+}
+
+export async function downloadIndividualFiles(
     accessionId,
     svgElement,
     baseFileName = 'osteomap-export'
 ) {
-
-    // Check whether JSZip is available
-    if (typeof window.JSZip !== 'function') {
-        throw new Error(
-            'ZIP export unavailable: JSZip could not be loaded.'
-        );
-    }
-
-    // Create the ZIP container
-    const zip = new window.JSZip();
-
-    // Create both export files as Blobs
-    const csvBlob =
-        await createIndividualCsvBlob(accessionId);
-
-    const jpegBlob =
-        await createSkeletonJpegBlob(svgElement);
-
-    // Add the files to the ZIP
-    zip.file(
-        `${baseFileName}_data.csv`,
-        csvBlob
-    );
-
-    zip.file(
-        `${baseFileName}_skeleton.jpg`,
-        jpegBlob
-    );
-
-    // Generate the completed ZIP as a Blob
-    const zipBlob =
-        await zip.generateAsync({
-            type: 'blob'
-        });
-
-    // Download one ZIP file
-    downloadBlob(
-        zipBlob,
-        `${baseFileName}.zip`
-    );
+    // Generate both files before saving either one, so a rendering error
+    // cannot leave behind only the CSV.
+    const csvBlob = await createIndividualCsvBlob(accessionId);
+    const jpegBlob = await createSkeletonJpegBlob(svgElement);
+    await saveCsvAndJpeg(csvBlob, jpegBlob, baseFileName);
 }

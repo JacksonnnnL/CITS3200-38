@@ -8,7 +8,8 @@ import {
     stateToCode,
     buildExportRows,
     escapeCsvValue,
-    rowsToCsv
+    rowsToCsv,
+    saveCsvAndJpeg
 } from "../www/js/skeletonExport.js";
 
 import {
@@ -32,23 +33,23 @@ describe("stateToCode", () => {
     });
 
 
-    it("converts fragmented to 2", () => {
+    it("converts fragmented to 1", () => {
 
         expect(
             stateToCode(
                 PRESERVATION_STATES.PRESENT_FRAGMENTED
             )
-        ).toBe(2);
+        ).toBe(1);
     });
 
 
-    it("converts complete to 1", () => {
+    it("converts complete to 2", () => {
 
         expect(
             stateToCode(
                 PRESERVATION_STATES.PRESENT_COMPLETE
             )
-        ).toBe(1);
+        ).toBe(2);
     });
 
 
@@ -91,7 +92,7 @@ describe("buildExportRows", () => {
             bone_id: "FEM_R",
             element_code: "FEM_R",
             element_label: "Right femur",
-            state_code: 1
+            state_code: 2
         });
     });
 
@@ -119,13 +120,13 @@ describe("buildExportRows", () => {
             bone_id: "MAL_L",
             element_code: "",
             element_label: "",
-            state_code: 1
+            state_code: 2
         });
     });
 
 });
 
-it("exports fragmented bones with state code 2", () => {
+it("exports fragmented bones with state code 1", () => {
 
     const zoneStates = [
         {
@@ -138,7 +139,7 @@ it("exports fragmented bones with state code 2", () => {
 
     const rows = buildExportRows(zoneStates);
 
-    expect(rows[0].state_code).toBe(2);
+    expect(rows[0].state_code).toBe(1);
 });
 
 // ========================================
@@ -194,14 +195,14 @@ describe("rowsToCsv", () => {
                 bone_id: "FEM_R",
                 element_code: "FEM_R",
                 element_label: "Right femur",
-                state_code: 2
+                state_code: 1
             },
 
             {
                 bone_id: "TIB_L",
                 element_code: "TIB_L",
                 element_label: "Left tibia",
-                state_code: 1
+                state_code: 2
             }
         ];
 
@@ -215,11 +216,11 @@ describe("rowsToCsv", () => {
         );
 
         expect(csv).toContain(
-            "FEM_R,FEM_R,Right femur,2"
+            "FEM_R,FEM_R,Right femur,1"
         );
 
         expect(csv).toContain(
-            "TIB_L,TIB_L,Left tibia,1"
+            "TIB_L,TIB_L,Left tibia,2"
         );
     });
 
@@ -231,7 +232,7 @@ describe("rowsToCsv", () => {
                 bone_id: "MAL_L",
                 element_code: "",
                 element_label: "",
-                state_code: 2
+                state_code: 1
             }
         ];
 
@@ -241,8 +242,55 @@ describe("rowsToCsv", () => {
 
 
         expect(csv).toContain(
-            "MAL_L,,,2"
+            "MAL_L,,,1"
         );
     });
 
+});
+
+describe('Two-file exports', () => {
+    it('saves separate CSV and JPEG files directly to Android Downloads', async () => {
+        const calls = [];
+        const originalCapacitor = globalThis.Capacitor;
+        const originalReader = globalThis.FileReader;
+        globalThis.Capacitor = {
+            getPlatform: () => 'android',
+            isNativePlatform: () => true,
+            Plugins: {
+                OsteoMapDownloads: {
+                    async save(options) {
+                        calls.push(options);
+                        return { directory: 'Downloads', fileName: options.fileName };
+                    }
+                }
+            }
+        };
+        globalThis.FileReader = class {
+            readAsDataURL(blob) {
+                blob.arrayBuffer().then(buffer => {
+                    const bytes = new Uint8Array(buffer);
+                    this.result = 'data:' + blob.type + ';base64,' +
+                        btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
+                    this.onload();
+                });
+            }
+        };
+        try {
+            await saveCsvAndJpeg(
+                new Blob(['bone_id,state_code\nFEM_R,2'], { type: 'text/csv' }),
+                new Blob([new Uint8Array([255, 216, 255, 217])], { type: 'image/jpeg' }),
+                'SITE123_IND001'
+            );
+            expect(calls).toHaveLength(2);
+            expect(calls.map(({ fileName }) => fileName)).toEqual([
+                'SITE123_IND001_data.csv',
+                'SITE123_IND001_skeleton.jpg'
+            ]);
+            expect(calls.map(({ mimeType }) => mimeType)).toEqual(['text/csv', 'image/jpeg']);
+            expect(calls.every(({ fileName }) => !fileName.endsWith('.zip'))).toBe(true);
+        } finally {
+            globalThis.Capacitor = originalCapacitor;
+            globalThis.FileReader = originalReader;
+        }
+    });
 });

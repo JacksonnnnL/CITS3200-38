@@ -253,10 +253,10 @@ OsteoMap allows recorded skeletal information to be exported for external storag
 
 To export data:
 
-1. Open the record containing the skeletal information you want to export.
-2. Select the available **Export** option.
-3. OsteoMap will generate the corresponding export file.
-4. Save the generated file to the required location on the device.
+1. Open the individual whose skeletal information you want to export.
+2. Tap **Export** and select **CSV Data**, **JPEG Image**, or both.
+3. In the Android app, the selected files are saved directly to the device's **Downloads** folder.
+4. If both are selected, two separate files are saved: a `.csv` and a `.jpg` (not a ZIP).
 
 Preservation states are represented numerically in exported skeletal data:
 

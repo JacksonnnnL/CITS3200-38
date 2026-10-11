@@ -18,7 +18,7 @@ import {
 import {
     downloadIndividualCsv,
     downloadSkeletonJpeg,
-    downloadIndividualZip
+    downloadIndividualFiles
 } from './skeletonExport.js';
 
 // ========================================
@@ -648,10 +648,10 @@ exportConfirmButton?.addEventListener(
                     '#skeleton-board svg'
                 );
 
-            // Both selected -> ZIP
+            // Both selected -> two separate files
             if (exportCsv && exportJpeg) {
 
-                await downloadIndividualZip(
+                await downloadIndividualFiles(
                     accessionId,
                     svgElement,
                     baseFileName
