@@ -12,26 +12,26 @@ OsteoMap is designed as an **offline-capable Android application (using web tech
 
 OsteoMap currently supports:
 
-- Creating and managing archaeological **sites**.
-- Creating **individual records** associated with a site.
-- Recording contextual information for individuals, including grave or context information where applicable.
-- Viewing individuals associated with a selected site.
-- Viewing an interactive skeletal inventory for an individual.
-- Selecting individual bones and anatomical bone zones.
-- Recording skeletal preservation states.
-- Storing application data locally using **IndexedDB**.
-- Exporting skeletal inventory data for further analysis.
-- Navigating between site, individual, and skeletal inventory records through a mobile-friendly interface.
+- Creating and managing archaeological **sites**, including editing a site's description.
+- Creating **individual records** associated with a site, with an optional grave or context, and editing an individual's context afterwards.
+- Filtering a site's individuals by developmental age, listed in order of accession number.
+- Skeleton diagrams for **adult, adolescent, child and infant** individuals.
+- Recording the preservation state of each bone by tapping it on the skeleton diagram, with tools to mark a whole segment as Present, reset it, and undo the last change.
+- Zooming and panning the diagrams on a touchscreen.
+- A **Site Bone Summary** showing the Minimum Number of Individuals (MNI) and the most frequently present bones for the whole site.
+- Exporting an individual's record as a **CSV data file** and a **JPEG image** of the skeleton.
+- Storing application data locally on the device using **IndexedDB**, so the app works offline.
 
 ### Preservation States
 
-Each bone or bone zone can be assigned one of three preservation states:
+Each bone can be assigned one of three preservation states. A bone with no state recorded is shown as **Unmarked**.
 
-- **Present** — the bone or zone is present and complete.
-- **Fragmented** — the bone or zone is present but incomplete or fragmented.
-- **Absent** — the bone or zone is not present.
+- **Present** (green) — at least 50% of the bone is present. Counted in MNI.
+- **Fragmented** (orange) — less than 50% of the bone is present. Recorded for inventory purposes only and not counted in MNI.
+- **Absent** (grey) — the bone is not present.
+- **Unmarked** (white) — no state has been recorded yet.
 
-These states are visually represented within the skeletal interface to allow users to quickly identify the preservation of different anatomical elements.
+These states are shown by colour on the skeleton diagram so that the preservation of different bones can be seen at a glance.
 
 ---
 
@@ -44,8 +44,7 @@ Site
 └── Grave / Context / Site Subdivision (optional)
     └── Individual
         └── Bone
-            └── Bone Zone
-                └── Preservation State
+            └── Preservation State
 ```
 
 A **site** represents an excavation or research location.
@@ -54,7 +53,7 @@ Each site may optionally contain graves, contexts, or other subdivisions dependi
 
 An **individual** represents a set of human skeletal remains recorded within a site. Individuals are associated with their parent site and may additionally be associated with a grave or context.
 
-Each individual's skeletal inventory records the preservation state of individual bones and anatomical zones.
+Each individual's skeletal inventory records the preservation state of individual bones. Each bone is recorded as a whole. Recording preservation for separate zones within a bone is not available in this version.
 
 ---
 
@@ -79,7 +78,7 @@ Open Skeletal Inventory
       ↓
 Select a Bone
       ↓
-Record Bone / Zone Preservation
+Record Bone Preservation
       ↓
 Repeat for Remaining Skeletal Elements
       ↓
@@ -138,6 +137,17 @@ Individuals are stored within a site. An individual represents a set of skeletal
 
 After creation, the application will return to the selected site and the individual will appear in its list of individuals.
 
+Two rules apply when creating an individual:
+
+- **Accession numbers must be unique within a site.** A number that differs only by capital letters or spaces (for example `acc01` and `ACC01`) is treated as a duplicate and is not accepted.
+- **Developmental Age is required** (adult, adolescent, child or infant). It decides which skeleton diagram is shown for the individual.
+
+### Editing and Filtering
+
+- On a site's page, use the **Edit** button beside the site code to change the site's description.
+- On an individual's card, use **Edit** to change the individual's grave or context.
+- Use the **Age** filter above the list to show only individuals of one developmental age. The list is ordered by accession number.
+
 ### Grave and Context Information
 
 Grave or context information can be used to represent subdivisions within an archaeological site.
@@ -164,16 +174,15 @@ This information is optional because not every site requires an internal subdivi
 
 ## 3. Using the Skeletal Inventory
 
-The skeletal inventory provides an interactive representation of an individual's skeleton.
-
-Each skeletal element can be selected to record its preservation state.
+The skeletal inventory provides an interactive representation of an individual's skeleton. The diagram matches the individual's developmental age (adult, adolescent, child or infant).
 
 ### Opening the Skeletal Inventory
 
-1. Open the required individual.
-2. Navigate to the individual's skeletal inventory.
-3. The skeletal overview will display the available skeletal elements.
-4. Select a bone to begin recording its preservation.
+1. Open the required individual from the site's page.
+2. The individual's page shows the date, a **Notes** box, the colour key, and the whole skeleton with each bone coloured by its recorded state.
+3. Tap part of the skeleton to open that **segment** for recording. There are seven segments: Cranium, Axial (spine, ribs and sternum), Pelvis, Right Upper Limb, Left Upper Limb, Right Lower Limb and Left Lower Limb.
+4. You can also switch between segments using the tabs at the top of the recording page.
+5. Tap a bone to begin recording its preservation.
 
 ---
 
@@ -181,37 +190,31 @@ Each skeletal element can be selected to record its preservation state.
 
 The application uses three preservation states:
 
-- **Present** — the bone or zone is present and complete.
-- **Fragmented** — the bone or zone is present but incomplete or fragmented.
-- **Absent** — the bone or zone is not present.
+- **Present** — at least 50% of the bone is present. Counted in MNI.
+- **Fragmented** — less than 50% of the bone is present. Not counted in MNI.
+- **Absent** — the bone is not present.
 
 ### Recording a Bone
 
-1. Select the required bone from the skeletal overview.
-2. The selected bone will open for more detailed recording.
-3. Select the required anatomical zone, or mark the applicable zones as complete before changing individual zones to **Fragmented** or **Absent** where required.
-4. Assign the appropriate preservation state.
-5. Continue through the required zones until the bone has been recorded.
-6. Return to the skeletal overview to select another bone.
+1. On the recording page, tap the bone on the diagram. It is outlined and a panel opens showing the bone's name and its current state.
+2. Tap **Present**, **Fragmented** or **Absent**. Each button shows a short reminder of what it means, including whether it counts towards MNI.
+3. The bone changes colour straight away and the state is saved on the device.
+4. To clear a bone back to **Unmarked**, tap the same state again.
+5. Tap another bone to continue, or close the panel.
 
-Repeat this process for each skeletal element that needs to be recorded.
+Repeat this for each bone that needs to be recorded. Each bone is recorded as a whole.
 
 ---
 
-## 5. Recording Bone Zones
+## 5. Marking Several Bones at Once
 
-Where applicable, bones are divided into anatomical zones to provide more detailed preservation information.
+Three buttons above the diagram work on the **segment you are viewing**:
 
-For example, a bone may be partially preserved even though some individual zones remain complete. Recording preservation at the zone level allows this difference to be represented within the inventory.
+- **All Present** — marks every bone in the segment as Present. The app asks you to confirm first, and this replaces any states already recorded in that segment.
+- **Reset States** — clears every bone in the segment back to Unmarked, after confirmation.
+- **Undo Change** — reverses the most recent change, including a whole-segment action. Only the latest change can be undone, and the undo is cleared when you move to another segment.
 
-To record a zone:
-
-1. Open the required bone.
-2. Select the anatomical zone.
-3. Assign **Present**, **Fragmented**, or **Absent**.
-4. Repeat the process for the remaining zones.
-
-The visual state of the bone will update to reflect the preservation information that has been recorded.
+**Bones shown in several views.** Some bones, mainly in the cranium, appear in more than one view on the diagram. Marking one view of a bone marks that bone's other views as well, so you only need to mark it once.
 
 ---
 
@@ -221,27 +224,37 @@ The skeletal interface is designed for touchscreen and mobile use.
 
 When interacting with the skeletal diagram:
 
-- **Tap** a skeletal element to select it.
-- Use the available bone controls to record preservation.
-- **Zoom** when a closer view of the skeletal diagram is required.
-- **Pan** across the diagram when viewing the skeleton at a larger scale.
-- Return to the skeletal overview when you have finished recording a particular bone.
+- **Tap** a bone to select it and record its preservation.
+- **Pinch** with two fingers to zoom in or out.
+- **Drag** with one finger to move around a zoomed diagram. Dragging does not select a bone.
+- Tap **Reset Zoom** to return to the full view of the segment.
+- Use the back arrow at the top left to return to the individual's page, and again to return to the site.
 
-When using OsteoMap on a touchscreen device, zooming and panning can be performed using standard touch gestures.
+Small bones are easier to select when zoomed in.
 
 ---
 
 ## 7. Minimum Number of Individuals (MNI)
 
-When determining the **Minimum Number of Individuals (MNI)** from the recorded skeletal inventory, only skeletal elements recorded as **Present** contribute to the MNI count.
+OsteoMap calculates the **Minimum Number of Individuals (MNI)** for a whole site. It appears on the site's page, in the **Site Bone Summary** card below the list of individuals.
+
+The card shows:
+
+- the **MNI** for the site, and
+- the **most frequently present bones** (up to five), each with its code and how many of the site's individuals have it, for example "Right femur — 2 of 3".
+
+**How it is calculated.** For each bone, OsteoMap counts the individuals in the site who have it recorded as **Present**. The highest of these counts is the MNI. Left and right bones are counted separately, and individuals of every developmental age are counted together. The summary is recalculated from the saved records each time the page opens, so it always reflects the latest changes, including added or deleted individuals.
 
 | Preservation State | Included in MNI |
 | ------------------ | --------------- |
 | Present            | Yes             |
 | Fragmented         | No              |
 | Absent             | No              |
+| Unmarked           | No              |
 
-A skeletal element marked as **Fragmented** or **Absent** is therefore not counted when determining MNI.
+A bone marked **Fragmented** (less than 50% present) is recorded for inventory but not counted when determining MNI.
+
+**Which bones count.** Only the bones on the client's element list are counted: the skull, mandible, hyoid, sternum, sacrum, the first rib, the first two cervical vertebrae (C1 and C2), the pelvis, the long bones, and the carpal, tarsal, metacarpal, metatarsal and thumb and big-toe phalanx bones. The skull counts as **one element**: if any cranial bone is marked Present, the skull is counted as present for that individual. The remaining ribs and vertebrae can be recorded on the diagram but do not affect the MNI.
 
 Users should ensure that preservation states have been recorded correctly before interpreting MNI results.
 
@@ -249,7 +262,9 @@ Users should ensure that preservation states have been recorded correctly before
 
 ## 8. Exporting Data
 
-OsteoMap allows recorded skeletal information to be exported for external storage or further analysis.
+OsteoMap allows an individual's recorded skeletal information to be exported for external storage or further analysis. Export is per individual. Exporting a whole site in one step is not available in this version.
+
+> **Requirement:** saving exports to the Downloads folder needs **Android 10 or newer**.
 
 To export data:
 
@@ -265,6 +280,8 @@ Preservation states are represented numerically in exported skeletal data:
 | Absent             |           0 |
 | Fragmented         |           2 |
 | Present / Complete |           1 |
+
+The CSV has one row for each bone that has a recorded state, with its bone code, element code, label and state code. Bones that are Unmarked are not listed. The JPEG is an A4 image of the whole skeleton coloured by state, with a colour legend.
 
 These codes allow exported records to be used more easily in statistical analysis or other research software.
 
@@ -285,6 +302,8 @@ Changes made to sites, individuals, and skeletal preservation records are stored
 > Important records should be exported regularly and stored in an appropriate backup location.
 
 Data stored on one device should not be assumed to automatically appear on another device.
+
+OsteoMap does not currently have an import or restore function. Exported CSV and JPEG files are for analysis and records. They cannot be loaded back into the app.
 
 ---
 
@@ -320,10 +339,17 @@ When using OsteoMap for research or fieldwork:
 | View a site          | Available Sites → Select Site                  |
 | Add an individual    | Site → Add Individual                          |
 | View an individual   | Site → Select Individual                       |
-| Record preservation  | Individual → Skeletal Inventory → Select Bone  |
-| Record bone zones    | Select Bone → Select Zone → Preservation State |
-| Review MNI           | Individual / skeletal inventory MNI output     |
-| Export records       | Individual / Skeletal Inventory → Export       |
+| Record preservation  | Individual → Tap a segment → Tap a bone → Present / Fragmented / Absent |
+| Clear a bone         | Tap the bone → tap its current state again     |
+| Mark a whole segment | Segment page → All Present                     |
+| Clear a whole segment | Segment page → Reset States                   |
+| Undo the last change | Segment page → Undo Change                     |
+| Zoom                 | Pinch; Reset Zoom button                       |
+| Review MNI           | Site → Site Bone Summary                       |
+| Filter individuals   | Site → Age filter                              |
+| Edit a site description | Site → Edit (top right)                     |
+| Edit an individual's context | Site → Edit on the individual's card   |
+| Export records       | Individual → Export (CSV, JPEG, or both)       |
 | Delete a site        | Available Sites → Delete mode                  |
 | Delete an individual | Site → Delete mode                             |
 
