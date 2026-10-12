@@ -306,6 +306,15 @@ const contextMap =
     );
 
 
+// User-entered labels are inserted into a card template below. Escape them
+// so punctuation (e.g. < or &) cannot become HTML or injected elements.
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;',
+        '"': '&quot;', "'": '&#39;'
+    }[char]));
+}
+
 function renderIndividuals(
     individuals,
     emptyMessage = "No individuals created yet."
@@ -378,12 +387,12 @@ function renderIndividuals(
                 <div class="individual-card-header">
 
                     <h3 class="accession-number">
-                        ${individual.accessionNumber}
+                        ${escapeHtml(individual.accessionNumber)}
                     </h3>
 
                     <span class="individual-date">
                         Date:
-                        ${individual.date || "Not specified"}
+                        ${escapeHtml(individual.date || "Not specified")}
                     </span>
 
                 </div>
@@ -392,7 +401,7 @@ function renderIndividuals(
 
                     <p class="individual-context">
                         <strong>Context:</strong>
-                        ${context || "Not specified"}
+                        ${escapeHtml(context || "Not specified")}
                     </p>
 
                     <button
@@ -406,7 +415,7 @@ function renderIndividuals(
                 </div>
 
                 <p class="individual-age">
-                    ${age}
+                    ${escapeHtml(age)}
                 </p>
             `;
 

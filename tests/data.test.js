@@ -3,6 +3,7 @@ import { IDBFactory } from "fake-indexeddb";
 
 import {
   AGE_CATEGORIES,
+  DuplicateAccessionNumberError,
   DuplicateSiteCodeError,
   NotFoundError,
   PRESERVATION_STATES,
@@ -134,6 +135,75 @@ describe("accessions", () => {
     expect(fetched.accessionNumber).toBe("SK023");
   });
 
+  it("rejects duplicate accession numbers within the same site, ignoring case and whitespace", async () => {
+    const site = await createSite({ code: "WES001" });
+    await createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
+
+    await expect(createAccession({
+      siteId: site.id,
+      accessionNumber: " sk023 ",
+      ageCategory: AGE_CATEGORIES.CHILD,
+    })).rejects.toBeInstanceOf(DuplicateAccessionNumberError);
+
+    expect(await getAccessionsBySite(site.id)).toHaveLength(1);
+  });
+
+  it("rejects duplicates across contexts within the same site", async () => {
+    const site = await createSite({ code: "WES001" });
+    const contextA = await createContext({ siteId: site.id, code: "G1" });
+    const contextB = await createContext({ siteId: site.id, code: "G2" });
+    await createAccession({ siteId: site.id, contextId: contextA.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
+
+    await expect(createAccession({
+      siteId: site.id, contextId: contextB.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.INFANT,
+    })).rejects.toBeInstanceOf(DuplicateAccessionNumberError);
+  });
+
+  it("allows the same accession number in different sites", async () => {
+    const siteA = await createSite({ code: "WES001" });
+    const siteB = await createSite({ code: "WES002" });
+    await createAccession({ siteId: siteA.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
+    await createAccession({ siteId: siteB.id, accessionNumber: "sk023", ageCategory: AGE_CATEGORIES.CHILD });
+
+    expect(await getAccessionsBySite(siteA.id)).toHaveLength(1);
+    expect(await getAccessionsBySite(siteB.id)).toHaveLength(1);
+  });
+
+  it("rejects a duplicate on renaming an accession, but permits an unchanged number", async () => {
+    const site = await createSite({ code: "WES001" });
+    const first = await createAccession({ siteId: site.id, accessionNumber: "SK001", ageCategory: AGE_CATEGORIES.ADULT });
+    const second = await createAccession({ siteId: site.id, accessionNumber: "SK002", ageCategory: AGE_CATEGORIES.ADULT });
+
+    await expect(updateAccession(second.id, { accessionNumber: " sk001 " }))
+      .rejects.toBeInstanceOf(DuplicateAccessionNumberError);
+    expect((await getAccessionById(second.id)).accessionNumber).toBe("SK002");
+    expect((await updateAccession(first.id, { accessionNumber: "sk001" })).accessionNumber).toBe("sk001");
+  });
+
+  it("serializes concurrent duplicate creations", async () => {
+    const site = await createSite({ code: "WES001" });
+    const results = await Promise.allSettled([
+      createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT }),
+      createAccession({ siteId: site.id, accessionNumber: "sk023", ageCategory: AGE_CATEGORIES.CHILD }),
+    ]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect(await getAccessionsBySite(site.id)).toHaveLength(1);
+  });
+
+  it("requires a developmental age before creating an individual", async () => {
+    const site = await createSite({ code: "WES001" });
+
+    for (const ageCategory of [undefined, null, ""]) {
+      await expect(
+        createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory })
+      ).rejects.toThrow("Developmental age is required");
+    }
+
+    expect(await getAccessionsBySite(site.id)).toHaveLength(0);
+  });
+
   it("rejects an invalid age category", async () => {
     const site = await createSite({ code: "WES001" });
     await expect(
@@ -143,7 +213,7 @@ describe("accessions", () => {
 
   it("rejects an accession whose siteId does not reference a real site", async () => {
     await expect(
-      createAccession({ siteId: "does-not-exist", accessionNumber: "SK023" })
+      createAccession({ siteId: "does-not-exist", accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT })
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 
@@ -154,6 +224,7 @@ describe("accessions", () => {
         siteId: site.id,
         contextId: "does-not-exist",
         accessionNumber: "SK023",
+        ageCategory: AGE_CATEGORIES.ADULT,
       })
     ).rejects.toBeInstanceOf(NotFoundError);
   });
@@ -168,6 +239,7 @@ describe("accessions", () => {
         siteId: siteA.id,
         contextId: contextOnB.id,
         accessionNumber: "SK023",
+        ageCategory: AGE_CATEGORIES.ADULT,
       })
     ).rejects.toBeInstanceOf(ValidationError);
   });
@@ -175,8 +247,8 @@ describe("accessions", () => {
   it("lists accessions scoped to their site", async () => {
     const siteA = await createSite({ code: "WES001" });
     const siteB = await createSite({ code: "WES002" });
-    await createAccession({ siteId: siteA.id, accessionNumber: "SK001" });
-    await createAccession({ siteId: siteB.id, accessionNumber: "SK002" });
+    await createAccession({ siteId: siteA.id, accessionNumber: "SK001", ageCategory: AGE_CATEGORIES.ADULT });
+    await createAccession({ siteId: siteB.id, accessionNumber: "SK002", ageCategory: AGE_CATEGORIES.ADULT });
 
     expect(await getAccessionsBySite(siteA.id)).toHaveLength(1);
     expect(await getAccessionsBySite(siteB.id)).toHaveLength(1);
@@ -184,15 +256,15 @@ describe("accessions", () => {
 
   it("updates an accession", async () => {
     const site = await createSite({ code: "WES001" });
-    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023" });
+    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
     const updated = await updateAccession(accession.id, { notes: "found in situ" });
     expect(updated.notes).toBe("found in situ");
   });
 
   it("deleting an accession removes only its own zone states", async () => {
     const site = await createSite({ code: "WES001" });
-    const a1 = await createAccession({ siteId: site.id, accessionNumber: "SK001" });
-    const a2 = await createAccession({ siteId: site.id, accessionNumber: "SK002" });
+    const a1 = await createAccession({ siteId: site.id, accessionNumber: "SK001", ageCategory: AGE_CATEGORIES.ADULT });
+    const a2 = await createAccession({ siteId: site.id, accessionNumber: "SK002", ageCategory: AGE_CATEGORIES.ADULT });
     await setZoneState({
       accessionId: a1.id,
       bone: "FEM",
@@ -216,7 +288,7 @@ describe("accessions", () => {
 describe("zone states", () => {
   it("sets a zone state and reads it back", async () => {
     const site = await createSite({ code: "WES001" });
-    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023" });
+    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
 
     await setZoneState({
       accessionId: accession.id,
@@ -233,7 +305,7 @@ describe("zone states", () => {
 
   it("setting the same zone twice upserts instead of duplicating", async () => {
     const site = await createSite({ code: "WES001" });
-    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023" });
+    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
     const coords = { accessionId: accession.id, bone: "FEM", side: "L", zone: "Z01" };
 
     await setZoneState({ ...coords, state: PRESERVATION_STATES.PRESENT_COMPLETE });
@@ -246,7 +318,7 @@ describe("zone states", () => {
 
   it("rejects an invalid preservation state", async () => {
     const site = await createSite({ code: "WES001" });
-    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023" });
+    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
 
     await expect(
       setZoneState({ accessionId: accession.id, bone: "FEM", zone: "Z01", state: "pathological" })
@@ -266,7 +338,7 @@ describe("zone states", () => {
 
   it("clears a zone state", async () => {
     const site = await createSite({ code: "WES001" });
-    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023" });
+    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
     const coords = { accessionId: accession.id, bone: "FEM", zone: "Z01" };
 
     await setZoneState({ ...coords, state: PRESERVATION_STATES.PRESENT_COMPLETE });
@@ -277,7 +349,7 @@ describe("zone states", () => {
 
   it("keeps zones distinct by bone/side/zone even on the same accession", async () => {
     const site = await createSite({ code: "WES001" });
-    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023" });
+    const accession = await createAccession({ siteId: site.id, accessionNumber: "SK023", ageCategory: AGE_CATEGORIES.ADULT });
 
     await setZoneState({
       accessionId: accession.id,
