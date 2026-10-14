@@ -466,3 +466,11 @@ The key identification requirements are:
 - Sites must be able to operate both with and without internal subdivisions.
 
 Overall, OsteoMap aims to provide a flexible and intuitive method for recording skeletal preservation while accommodating different archaeological site structures and anthropological documentation practices.
+
+# Copyright and Attribution
+The skeletal SVG diagrams for the Adult, Adolescent, Child, and Infant age groups were organised as part of the CITS3200 OsteoMap project.
+
+The diagrams were developed using anatomical illustrations provided by the client as references. The SVG development involved separating individual bones, assigning unique bone IDs, and organising the diagrams into seven anatomical segments for interactive use within the application.
+
+## Original reference
+Bocquentin, F., & Anton, M. (2021). Visual inventories and field note templates for contextualised recording of human remains. Bulletins et Mémoires de la Société d’Anthropologie de Paris. https://journals.openedition.org/bmsap/7750
